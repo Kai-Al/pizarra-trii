@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pizarra · Pantalla</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/base.css">
+<style>
+  html { font-size: min(1vw, 1.78vh); }
+  body { height: 100vh; overflow: hidden; }
+
+  .view { position: absolute; inset: 0; }
+
+  /* ---------- Pizarra ---------- */
+  .board {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: 1.6rem;
+    padding: 2.4rem 3rem 0;
+  }
+  .head { display: flex; justify-content: space-between; align-items: flex-end; gap: 2rem; }
+  .head .eyebrow { font-size: 1.3rem; margin-bottom: 0.9rem; }
+  .head h1 { font-size: 6.2rem; margin: 0; }
+  .status { display: flex; flex-direction: column; align-items: flex-end; gap: 1rem; }
+  .status .pill { font-size: 1.3rem; }
+  .status .sub { font-family: var(--font-mono); font-size: 1.2rem; color: var(--muted); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 1.3rem;
+    min-height: 0;
+    transition: filter 0.4s;
+  }
+  .card {
+    position: relative;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    padding: 1.3rem 1.5rem 1.2rem;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    min-height: 0;
+    overflow: hidden;
+    transition: box-shadow 0.4s, border-color 0.4s, filter 0.4s;
+  }
+  .card .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; }
+  .card .ticker { font-family: var(--font-mono); font-weight: 800; font-size: 1.8rem; display: flex; align-items: center; gap: 0.7rem; }
+  .card .name { font-size: 1.3rem; color: var(--muted); margin-top: 0.3rem; }
+  .card .badge { font-size: 1.25rem; }
+  .card .bottom { display: flex; align-items: flex-end; justify-content: space-between; gap: 1.5rem; min-height: 0; }
+  .card .price { font-family: var(--font-mono); font-weight: 800; font-size: 3.4rem; line-height: 1; font-variant-numeric: tabular-nums; transition: color 0.3s; }
+  .card .spark { flex: 1; max-width: 14rem; height: 4.4rem; overflow: visible; }
+  .card .hot { font-size: 0.95rem; font-weight: 700; color: var(--warn); background: var(--warn-bg); padding: 0.25em 0.6em; border-radius: 999px; font-family: var(--font-sans); }
+  .price.flash-up { color: var(--up); }
+  .price.flash-down { color: var(--down); }
+  .card.hit-up { border-color: var(--up); box-shadow: 0 0 0 2px var(--up), 0 0 3rem rgb(115 247 139 / 0.25); }
+  .card.hit-down { border-color: var(--down); box-shadow: 0 0 0 2px var(--down), 0 0 3rem rgb(236 102 81 / 0.25); }
+  .breaking-on .card:not(.hit-up):not(.hit-down) { filter: brightness(0.45) saturate(0.6); }
+
+  .tape {
+    margin: 0 -3rem;
+    height: 3.6rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    font-family: var(--font-mono);
+    font-size: 1.25rem;
+    background: #0e1110;
+  }
+  .tape .live { flex: none; height: 100%; display: flex; align-items: center; padding: 0 1.4rem 0 3rem; color: var(--bg); background: var(--up); font-weight: 800; letter-spacing: 0.05em; z-index: 1; }
+  .tape .track { display: flex; white-space: nowrap; animation: tape 70s linear infinite; }
+  .tape .group { display: flex; gap: 2.6rem; padding-right: 2.6rem; }
+  .tape .item b { font-weight: 800; margin-right: 0.6rem; }
+  .tape .headline { color: var(--text); }
+  @keyframes tape { to { transform: translateX(-50%); } }
+
+  /* ---------- Última hora ---------- */
+  .breaking {
+    position: absolute;
+    left: 3rem;
+    right: 3rem;
+    bottom: 5.2rem;
+    background: #0f1311;
+    border: 1px solid var(--border);
+    border-left: 0.7rem solid var(--up);
+    border-radius: 1rem;
+    padding: 1.8rem 2.4rem 2rem;
+    box-shadow: 0 2rem 6rem rgb(0 0 0 / 0.6);
+    transform: translateY(140%);
+    opacity: 0;
+    transition: transform 0.55s cubic-bezier(0.2, 0.9, 0.2, 1.1), opacity 0.4s;
+    z-index: 5;
+  }
+  .breaking.down { border-left-color: var(--down); }
+  .breaking.show { transform: none; opacity: 1; }
+  .breaking .label { display: inline-block; font-family: var(--font-mono); font-weight: 800; font-size: 1.2rem; letter-spacing: 0.08em; padding: 0.35em 0.8em; border-radius: 6px; background: var(--up); color: var(--bg); }
+  .breaking.down .label { background: var(--down); }
+  .breaking h2 { font-family: var(--font-display); font-weight: 400; font-size: 4rem; line-height: 1.05; margin: 1rem 0 1.2rem; }
+  .breaking .chips { display: flex; flex-wrap: wrap; gap: 0.8rem; font-size: 1.6rem; }
+
+  /* ---------- QR ---------- */
+  .qr-view {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    grid-template-rows: 1fr auto;
+    column-gap: 5rem;
+    padding: 4rem 5rem 3rem;
+  }
+  .qr-view .left { align-self: center; }
+  .qr-view .eyebrow { font-size: 1.5rem; }
+  .qr-view h1 { font-size: 9rem; margin: 1.2rem 0 2rem; }
+  .qr-view p { font-size: 2.1rem; line-height: 1.35; color: var(--muted); margin: 0 0 2.4rem; max-width: 38rem; }
+  .qr-view p strong { color: var(--text); }
+  .qr-view .url { display: inline-block; font-family: var(--font-mono); font-weight: 700; font-size: 1.8rem; padding: 0.7em 1em; border: 1px solid var(--border); border-radius: 0.8rem; background: var(--card); }
+  .qr-view .count { margin-top: 2.4rem; font-family: var(--font-mono); font-weight: 800; font-size: 2.2rem; color: var(--up); }
+  .qr-view .qr { align-self: center; justify-self: center; width: min(38rem, 70vh); aspect-ratio: 1; background: var(--text); border-radius: 2rem; padding: 1.6rem; }
+  .qr-view .qr img { width: 100%; height: 100%; display: block; }
+  .qr-view .crowd { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 0.8rem; max-height: 7.6rem; overflow: hidden; margin-top: 2rem; }
+  .crowd span { font-size: 1.35rem; padding: 0.45em 0.9em; border-radius: 999px; background: var(--card); border: 1px solid var(--border); animation: popin 0.5s cubic-bezier(0.2, 0.9, 0.2, 1.3) both; }
+  @keyframes popin { from { transform: scale(0.4); opacity: 0; } }
+
+  /* ---------- Ranking ---------- */
+  .rank-view { display: grid; grid-template-rows: auto 1fr; gap: 2rem; padding: 2.4rem 3rem; }
+  .rank-list { display: grid; grid-template-rows: repeat(10, 1fr); gap: 0.7rem; min-height: 0; }
+  .rank-row {
+    display: grid;
+    grid-template-columns: 5rem 4rem 1fr 16rem 11rem;
+    align-items: center;
+    gap: 1.2rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.9rem;
+    padding: 0 1.6rem;
+    font-size: 1.7rem;
+    min-height: 0;
+  }
+  .rank-row .pos { font-family: var(--font-mono); font-weight: 800; color: var(--muted); }
+  .rank-row .emo { font-size: 2.2rem; }
+  .rank-row .who b { font-weight: 700; }
+  .rank-row .who span { color: var(--muted); font-size: 1.25rem; margin-left: 0.8rem; }
+  .rank-row .val { font-family: var(--font-mono); font-weight: 700; text-align: right; }
+  .rank-row .badge { font-size: 1.4rem; justify-self: end; }
+  .rank-row.top1 { border-color: var(--up); }
+  .empty { display: grid; place-items: center; color: var(--muted); font-size: 2rem; }
+
+  /* ---------- Final ---------- */
+  .podium-view { display: grid; grid-template-columns: 1fr 1.35fr; grid-template-rows: minmax(0, 1fr); gap: 3rem; padding: 2.4rem 3rem 0; }
+  .podium-view .side { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 1.6rem; min-height: 0; padding-bottom: 3rem; }
+  .podium-view h1 { font-size: 5.4rem; margin: 0; }
+  .podium-view .rest { display: flex; flex-direction: column; gap: 0.6rem; justify-content: flex-end; min-height: 0; overflow: hidden; }
+  .rest .rank-row { grid-template-columns: 4rem 3.2rem 1fr 9rem; flex: none; height: 4.6rem; font-size: 1.5rem; animation: slidein 0.6s cubic-bezier(0.2, 0.9, 0.2, 1.1) both; }
+  .rest .rank-row .badge { font-size: 1.25rem; }
+  @keyframes slidein { from { transform: translateX(-3rem); opacity: 0; } }
+  .podium { display: grid; grid-template-columns: repeat(3, 1fr); align-items: end; align-self: end; gap: 1.6rem; }
+  .step { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .step .avatar { width: 9rem; height: 9rem; border-radius: 50%; display: grid; place-items: center; font-size: 5rem; background: var(--card); border: 2px solid var(--border); margin-bottom: 1.2rem; }
+  .step .who { font-size: 2.2rem; font-weight: 700; min-height: 2.8rem; }
+  .step .area { font-size: 1.3rem; color: var(--muted); margin: 0.3rem 0 0.8rem; }
+  .step .badge { font-size: 1.6rem; }
+  .step .val { font-family: var(--font-mono); font-weight: 700; font-size: 1.4rem; color: var(--muted); margin: 0.6rem 0 1.2rem; }
+  .step .block { width: 100%; border-radius: 1rem 1rem 0 0; background: var(--card); border: 1px solid var(--border); border-bottom: 0; display: grid; place-items: start center; padding-top: 1.2rem; font-family: var(--font-display); font-size: 6rem; line-height: 1; color: var(--muted); overflow: hidden; }
+  .step.p1 .block { height: 30vh; background: var(--up-bg); color: var(--up); border-color: var(--up); }
+  .step.p2 .block { height: 22vh; }
+  .step.p3 .block { height: 16vh; }
+  .step.hidden .avatar { color: var(--dim); font-family: var(--font-display); font-size: 4.5rem; }
+  .step.hidden .who { color: var(--dim); }
+  .step.revealed .avatar { animation: reveal 0.8s cubic-bezier(0.2, 0.9, 0.2, 1.4) both; border-color: var(--up); }
+  @keyframes reveal { from { transform: scale(0.2) rotate(-20deg); opacity: 0; } }
+
+  .awards-view { display: grid; grid-template-rows: auto 1fr; gap: 2.4rem; padding: 2.4rem 3rem 3rem; }
+  .awards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1.4rem; align-content: center; }
+  .award { display: flex; flex-direction: column; align-items: center; background: var(--card); border: 1px solid var(--border); border-radius: 1.2rem; padding: 2.2rem 1.6rem; text-align: center; animation: popin 0.6s cubic-bezier(0.2, 0.9, 0.2, 1.3) both; }
+  .award .icon { font-size: 5rem; }
+  .award h3 { font-size: 1.9rem; margin: 1rem 0 0.4rem; }
+  .award .desc { color: var(--muted); font-size: 1.2rem; min-height: 3rem; }
+  .award .winner { font-size: 1.8rem; font-weight: 700; margin-top: auto; padding-top: 1.4rem; }
+  .award .detail { font-family: var(--font-mono); font-weight: 700; color: var(--up); font-size: 1.3rem; margin-top: 0.6rem; }
+
+  /* ---------- Ruleta ---------- */
+  .roulette {
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 2.4rem;
+    background: rgb(11 13 12 / 0.9);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .roulette.show { opacity: 1; }
+  .roulette .eyebrow { font-size: 1.8rem; color: var(--warn); }
+  .roulette .slot {
+    width: 80vw;
+    min-height: 15rem;
+    display: grid;
+    place-items: center;
+    padding: 2rem 3rem;
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 1.6rem;
+    text-align: center;
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .roulette .slot span { font-family: var(--font-display); font-size: 4.6rem; line-height: 1.05; }
+  .roulette .slot span.roll { animation: roll 0.12s ease-out; }
+  .roulette.landed .slot { border-color: var(--warn); box-shadow: 0 0 0 4px var(--warn), 0 0 6rem rgb(247 199 55 / 0.35); animation: pulse 0.5s ease-in-out 2; }
+  @keyframes roll { from { transform: translateY(-40%); opacity: 0.2; } }
+
+  /* ---------- Varios ---------- */
+  .sound { position: fixed; left: 50%; top: 1rem; transform: translateX(-50%); z-index: 10; font-size: 1.1rem; padding: 0.6em 1em; border-radius: 999px; border: 1px solid var(--border); background: var(--card); color: var(--muted); }
+  .offline { position: fixed; top: 1rem; left: 50%; transform: translateX(-50%); z-index: 20; font-family: var(--font-mono); font-size: 1.1rem; padding: 0.5em 1em; border-radius: 999px; background: var(--warn-bg); color: var(--warn); }
+  canvas.confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; }
+</style>
+</head>
+<body>
+
+<div class="view board" id="board">
+  <header class="head">
+    <div>
+      <div class="eyebrow" id="eyebrow">Apertura</div>
+      <h1 class="display" id="title">La pizarra de trii</h1>
+    </div>
+    <div class="status">
+      <span class="pill" id="pill">Mercado cerrado</span>
+      <span class="sub" id="sub">Precio de apertura: 100,00</span>
+    </div>
+  </header>
+  <main class="grid" id="grid"></main>
+  <footer class="tape"><span class="live">EN VIVO</span><div class="track" id="track"></div></footer>
+  <section class="breaking" id="breaking">
+    <span class="label">ÚLTIMA HORA</span>
+    <h2 id="breaking-headline"></h2>
+    <div class="chips" id="breaking-chips"></div>
+  </section>
+</div>
+
+<div class="view qr-view" id="qr" hidden>
+  <div class="left">
+    <div class="eyebrow" id="qr-eyebrow">Apertura</div>
+    <h1 class="display">La pizarra<br>de trii</h1>
+    <p>Escanea, escribe tu nombre y recibe <strong id="qr-cash">$1.000</strong> para invertir en las áreas de trii.</p>
+    <div class="url" id="qr-url">…</div>
+    <div class="count" id="qr-count">0 jugadores dentro</div>
+  </div>
+  <div class="qr"><img src="/qr.svg" alt="Código QR para entrar al juego"></div>
+  <div class="crowd" id="crowd"></div>
+</div>
+
+<div class="view rank-view" id="ranking" hidden>
+  <header class="head">
+    <div>
+      <div class="eyebrow" id="rank-eyebrow">Ranking</div>
+      <h1 class="display">Ranking en vivo</h1>
+    </div>
+    <div class="status"><span class="pill" id="rank-pill">Mercado cerrado</span><span class="sub" id="rank-sub"></span></div>
+  </header>
+  <div class="rank-list" id="rank-list"></div>
+</div>
+
+<div class="view podium-view" id="podium" hidden>
+  <div class="side">
+    <header class="head">
+      <div>
+        <div class="eyebrow" id="podium-eyebrow">Cierre</div>
+        <h1 class="display">El ranking<br>final</h1>
+      </div>
+    </header>
+    <div class="rest" id="rest"></div>
+  </div>
+  <div class="podium" id="podium-steps"></div>
+</div>
+
+<div class="view awards-view" id="awards" hidden>
+  <header class="head">
+    <div>
+      <div class="eyebrow" id="awards-eyebrow">Cierre</div>
+      <h1 class="display">Premios especiales</h1>
+    </div>
+  </header>
+  <div class="awards" id="awards-list"></div>
+</div>
+
+<div class="roulette" id="roulette" hidden>
+  <div class="eyebrow">🎲 Evento sorpresa</div>
+  <div class="slot"><span id="roulette-text"></span></div>
+</div>
+
+<button class="sound" id="sound">🔊 Activar sonido</button>
+<div class="offline" id="offline" hidden>Reconectando…</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/common.js"></script>
+<script>
+  const socket = io();
+  let board = { top: [], count: 0, recent: [] };
+  let final = null;
+  let ready = false;
+  const cards = {};
+
+  // ---------- Sonido (campana sintetizada) ----------
+  let audio = null;
+  const soundBtn = $('#sound');
+  soundBtn.onclick = () => {
+    audio = new (window.AudioContext || window.webkitAudioContext)();
+    soundBtn.hidden = true;
+    bell(880, 0.5);
+  };
+  function bell(freq = 660, gain = 0.6, delay = 0) {
+    if (!audio) return;
+    const t0 = audio.currentTime + delay;
+    for (const [mult, g, dur] of [[1, 1, 2.2], [2.76, 0.45, 1.2], [5.4, 0.25, 0.6]]) {
+      const o = audio.createOscillator();
+      const v = audio.createGain();
+      o.frequency.value = freq * mult;
+      v.gain.setValueAtTime(0.0001, t0);
+      v.gain.exponentialRampToValueAtTime(gain * g * 0.3, t0 + 0.01);
+      v.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(v).connect(audio.destination);
+      o.start(t0);
+      o.stop(t0 + dur);
+    }
+  }
+  const sounds = {
+    open: () => { bell(784); bell(1046, 0.6, 0.25); },
+    close: () => { bell(523); bell(392, 0.6, 0.3); },
+    news: () => { bell(1318, 0.4); bell(1318, 0.4, 0.15); },
+    final: () => { bell(523); bell(659, 0.6, 0.35); bell(784, 0.6, 0.7); bell(1046, 0.7, 1.05); },
+    fanfare: () => { bell(784); bell(988, 0.6, 0.15); bell(1175, 0.7, 0.3); bell(1568, 0.8, 0.5); },
+    click: () => {
+      if (!audio) return;
+      const o = audio.createOscillator();
+      const v = audio.createGain();
+      const t0 = audio.currentTime;
+      o.frequency.value = 1400;
+      v.gain.setValueAtTime(0.12, t0);
+      v.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.04);
+      o.connect(v).connect(audio.destination);
+      o.start(t0);
+      o.stop(t0 + 0.05);
+    },
+  };
+
+  // ---------- Pizarra ----------
+  function buildBoard() {
+    const grid = $('#grid');
+    grid.innerHTML = '';
+    for (const s of market.cfg.stocks) {
+      const el = document.createElement('article');
+      el.className = 'card';
+      el.innerHTML = `
+        <div class="top">
+          <div><div class="ticker">$${esc(s.ticker)}<span class="hot" hidden>🔥 la más comprada</span></div><div class="name">${esc(s.name)}</div></div>
+          <span class="b"></span>
+        </div>
+        <div class="bottom"><div class="price"></div><svg class="spark"></svg></div>`;
+      grid.appendChild(el);
+      cards[s.ticker] = { el, price: $('.price', el), badge: $('.b', el), spark: $('.spark', el), hot: $('.hot', el), last: null };
+    }
+    buildTape();
+  }
+
+  function renderCards() {
+    for (const s of market.cfg.stocks) {
+      const c = cards[s.ticker];
+      const p = market.prices[s.ticker];
+      const r = market.change(s.ticker);
+      if (c.last != null && Math.abs(p / c.last - 1) >= 0.004) {
+        c.price.classList.remove('flash-up', 'flash-down');
+        void c.price.offsetWidth;
+        c.price.classList.add(p > c.last ? 'flash-up' : 'flash-down');
+        clearTimeout(c.ft);
+        c.ft = setTimeout(() => c.price.classList.remove('flash-up', 'flash-down'), 700);
+      }
+      c.last = p;
+      c.price.textContent = fmt.num(p);
+      c.badge.innerHTML = badge(r);
+      c.hot.hidden = market.hot !== s.ticker || market.meta.phase !== 'open';
+      sparkline(c.spark, market.history[s.ticker], market.cfg.ipoPrice, { w: 220, h: 70, maxPoints: 90 });
+    }
+    renderTape();
+  }
+
+  function buildTape() {
+    const items = market.cfg.stocks.map((s) => `<span class="item" data-t="${esc(s.ticker)}"><b>$${esc(s.ticker)}</b><span class="p"></span> <span class="r"></span></span>`).join('');
+    const group = `<div class="group">${items}<span class="item headline"></span></div>`;
+    $('#track').innerHTML = group + group;
+  }
+
+  let lastHeadline = '';
+  function renderTape() {
+    for (const el of document.querySelectorAll('.tape .item[data-t]')) {
+      const t = el.dataset.t;
+      const r = market.change(t);
+      $('.p', el).textContent = fmt.num(market.prices[t]);
+      const re = $('.r', el);
+      re.textContent = `${fmt.arrow(r)} ${fmt.pct(r)}`;
+      re.className = 'r ' + (r >= 0 ? 'up-text' : 'down-text');
+    }
+    for (const el of document.querySelectorAll('.tape .headline')) el.textContent = lastHeadline ? '📰 ' + lastHeadline : '';
+  }
+
+  // ---------- Estado / encabezados ----------
+  function statusPill(el) {
+    const m = market.meta;
+    el.className = 'pill';
+    if (m.phase === 'open') {
+      const rem = market.remaining();
+      el.classList.add(rem != null && rem <= 10000 ? 'ending' : 'open');
+      el.textContent = rem != null ? `Mercado abierto · ${fmt.clock(rem)}` : 'Mercado abierto';
+    } else if (m.phase === 'finished') {
+      el.classList.add('final');
+      el.textContent = 'Cierre · precios finales';
+    } else if (m.phase === 'lobby') {
+      el.textContent = 'Pre-apertura';
+    } else {
+      el.textContent = 'Mercado cerrado';
+    }
+  }
+
+  function renderHeads() {
+    const m = market.meta;
+    const eyebrow = `${m.phase === 'finished' ? 'Cierre' : market.blockTitle()} · ${market.cfg.date}`;
+    for (const id of ['eyebrow', 'qr-eyebrow', 'rank-eyebrow']) $('#' + id).textContent = eyebrow;
+    for (const id of ['podium-eyebrow', 'awards-eyebrow']) $('#' + id).textContent = `Cierre · ${market.cfg.date}`;
+    const n = m.playerCount;
+    const players = `${n} ${n === 1 ? 'jugador' : 'jugadores'}`;
+    $('#sub').textContent = `${players} · Precio de apertura: ${fmt.num(market.cfg.ipoPrice)}`;
+    $('#rank-sub').textContent = players;
+    $('#qr-count').textContent = `${players} dentro`;
+    statusPill($('#pill'));
+    statusPill($('#rank-pill'));
+  }
+
+  function currentView() {
+    const m = market.meta;
+    if (m.phase === 'finished') {
+      if (m.reveal === 0) return 'board';
+      return m.reveal >= 5 ? 'awards' : 'podium';
+    }
+    if (m.view !== 'auto') return m.view === 'qr' ? 'qr' : m.view;
+    return m.phase === 'lobby' ? 'qr' : 'board';
+  }
+
+  let shownView = null;
+  let shownReveal = null;
+  function renderView() {
+    const v = currentView();
+    for (const id of ['board', 'qr', 'ranking', 'podium', 'awards']) $('#' + id).hidden = id !== v;
+    if (v === 'ranking') renderRanking();
+    if (v === 'qr') renderQr();
+    if ((v === 'podium' || v === 'awards') && (shownView !== v || shownReveal !== market.meta.reveal)) renderFinal();
+    shownView = v;
+    shownReveal = market.meta.reveal;
+  }
+
+  // ---------- QR ----------
+  fetch('/join-url').then((r) => r.json()).then(({ url }) => ($('#qr-url').textContent = url.replace(/^https?:\/\//, '').replace(/\/$/, '')));
+  const seenCrowd = new Set();
+  function renderQr() {
+    $('#qr-cash').textContent = fmt.money(market.cfg.startingCash).replace(',00', '');
+    const crowd = $('#crowd');
+    crowd.innerHTML = board.recent.map((p) => {
+      const key = p.emoji + p.name;
+      const fresh = !seenCrowd.has(key);
+      seenCrowd.add(key);
+      return `<span style="${fresh ? '' : 'animation:none'}">${esc(p.emoji)} ${esc(p.name)}</span>`;
+    }).join('');
+  }
+
+  // ---------- Ranking ----------
+  const medals = ['🥇', '🥈', '🥉'];
+  function rankRow(p, i) {
+    return `<div class="rank-row ${i === 0 ? 'top1' : ''}">
+      <span class="pos">${medals[i] || '#' + (i + 1)}</span>
+      <span class="emo">${esc(p.emoji)}</span>
+      <span class="who"><b>${esc(p.name)}</b><span>${esc(p.area)}</span></span>
+      <span class="val">${fmt.money(p.value)}</span>
+      ${badge(p.ret)}
+    </div>`;
+  }
+  function renderRanking() {
+    const list = $('#rank-list');
+    list.innerHTML = board.top.length ? board.top.map(rankRow).join('') : '<div class="empty" style="grid-row:1/-1">Todavía no hay jugadores</div>';
+  }
+
+  // ---------- Revelación final ----------
+  function renderFinal() {
+    if (!final) return;
+    const step = market.meta.reveal;
+    if (step >= 5) {
+      $('#awards-list').innerHTML = final.awards.map((a, i) => `
+        <div class="award" style="animation-delay:${i * 0.25}s">
+          <div class="icon">${a.icon}</div>
+          <h3>${esc(a.title)}</h3>
+          <div class="desc">${esc(a.desc)}</div>
+          <div class="winner">${esc(a.player.emoji)} ${esc(a.player.name)}</div>
+          <div class="detail">${esc(a.detail || '')}</div>
+        </div>`).join('') || '<div class="empty" style="grid-column:1/-1">Sin premios esta vez</div>';
+      return;
+    }
+    const top = final.ranking;
+    const rest = top.slice(3).reverse();
+    // La lista 10→4 se anima una sola vez; los pasos del podio no la vuelven a pintar.
+    const restKey = top.map((p) => p.id).join();
+    if (restKey !== renderFinal.restKey) $('#rest').innerHTML = rest.map((p, i) => {
+      const pos = top.indexOf(p);
+      return `<div class="rank-row" style="animation-delay:${i * 0.35}s">
+        <span class="pos">#${pos + 1}</span><span class="emo">${esc(p.emoji)}</span>
+        <span class="who"><b>${esc(p.name)}</b></span>${badge(p.ret)}</div>`;
+    }).join('');
+    renderFinal.restKey = restKey;
+    // Orden visual del podio: 2º, 1º, 3º. Se revelan con los pasos 2 (3º), 3 (2º) y 4 (1º).
+    const order = [1, 0, 2];
+    const revealAt = { 0: 4, 1: 3, 2: 2 };
+    $('#podium-steps').innerHTML = order.map((i) => {
+      const p = top[i];
+      const shown = p && step >= revealAt[i];
+      const justNow = shown && step === revealAt[i];
+      return `<div class="step p${i + 1} ${shown ? 'revealed' : 'hidden'}">
+        <div class="avatar" style="${shown && !justNow ? 'animation:none' : ''}">${shown ? esc(p.emoji) : '?'}</div>
+        <div class="who">${shown ? esc(p.name) : (p ? '???' : '—')}</div>
+        <div class="area">${shown ? esc(p.area) : '&nbsp;'}</div>
+        ${shown ? badge(p.ret) : '<span class="badge" style="visibility:hidden">·</span>'}
+        <div class="val">${shown ? fmt.money(p.value) : '&nbsp;'}</div>
+        <div class="block">${i + 1}</div>
+      </div>`;
+    }).join('');
+    if (step === 4 && shownReveal === 3) {
+      confetti();
+      sounds.fanfare();
+    }
+  }
+
+  // ---------- Última hora ----------
+  const newsQueue = [];
+  let newsBusy = false;
+  function showNews(item) {
+    newsQueue.push(item);
+    if (!newsBusy) nextNews();
+  }
+  function nextNews() {
+    const item = newsQueue.shift();
+    if (!item) {
+      newsBusy = false;
+      return;
+    }
+    newsBusy = true;
+    const vals = Object.values(item.effects);
+    const down = vals.length > 0 && vals.every((v) => v < 0);
+    const el = $('#breaking');
+    el.classList.toggle('down', down);
+    $('#breaking-headline').textContent = item.headline;
+    $('#breaking-chips').innerHTML = effectChips(item.effects);
+    const hit = new Set();
+    for (const [t, v] of Object.entries(item.effects)) {
+      for (const tk of t === 'ALL' ? market.cfg.stocks.map((s) => s.ticker) : [t]) if (cards[tk]) {
+        cards[tk].el.classList.add(v >= 0 ? 'hit-up' : 'hit-down');
+        hit.add(tk);
+      }
+    }
+    $('#board').classList.toggle('breaking-on', hit.size > 0 && hit.size < market.cfg.stocks.length);
+    el.classList.add('show');
+    sounds.news();
+    setTimeout(() => {
+      el.classList.remove('show');
+      $('#board').classList.remove('breaking-on');
+      setTimeout(() => {
+        for (const tk of hit) cards[tk].el.classList.remove('hit-up', 'hit-down');
+      }, 2500);
+      setTimeout(nextNews, 700);
+    }, 8000);
+  }
+
+  // ---------- Ruleta ----------
+  // Cada cambio de texto tarda un poco más que el anterior, para que frene como una ruleta de verdad.
+  function showRoulette({ sequence, spinMs, holdMs }) {
+    const box = $('#roulette');
+    const text = $('#roulette-text');
+    box.classList.remove('landed');
+    box.hidden = false;
+    requestAnimationFrame(() => box.classList.add('show'));
+    const n = sequence.length;
+    const r = 1.18;
+    const base = (spinMs * (r - 1)) / (Math.pow(r, n) - 1);
+    let i = 0;
+    (function step() {
+      text.textContent = sequence[i];
+      text.classList.remove('roll');
+      void text.offsetWidth;
+      text.classList.add('roll');
+      sounds.click();
+      i++;
+      if (i < n) return setTimeout(step, base * Math.pow(r, i));
+      box.classList.add('landed');
+      sounds.news();
+      setTimeout(() => {
+        box.classList.remove('show');
+        setTimeout(() => (box.hidden = true), 300);
+      }, holdMs);
+    })();
+  }
+
+  // ---------- Confeti ----------
+  function confetti() {
+    const c = document.createElement('canvas');
+    c.className = 'confetti';
+    document.body.appendChild(c);
+    const ctx = c.getContext('2d');
+    const W = (c.width = innerWidth * devicePixelRatio);
+    const H = (c.height = innerHeight * devicePixelRatio);
+    const colors = ['#73f78b', '#02fb7e', '#f1ede2', '#f7c737', '#ec6651'];
+    const parts = Array.from({ length: 260 }, () => ({
+      x: Math.random() * W,
+      y: -Math.random() * H * 0.6,
+      vx: (Math.random() - 0.5) * 6,
+      vy: 4 + Math.random() * 8,
+      r: Math.random() * Math.PI,
+      vr: (Math.random() - 0.5) * 0.3,
+      s: (6 + Math.random() * 10) * devicePixelRatio,
+      c: colors[Math.floor(Math.random() * colors.length)],
+    }));
+    const start = performance.now();
+    (function frame(now) {
+      ctx.clearRect(0, 0, W, H);
+      for (const p of parts) {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.08;
+        p.r += p.vr;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.r);
+        ctx.fillStyle = p.c;
+        ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2);
+        ctx.restore();
+      }
+      if (now - start < 6000) requestAnimationFrame(frame);
+      else c.remove();
+    })(start);
+  }
+
+  // ---------- Socket ----------
+  socket.on('connect', () => {
+    $('#offline').hidden = true;
+    socket.emit('hello', { role: 'screen' }, (res) => {
+      if (!res || !res.ok) return;
+      market.load(res);
+      final = res.final;
+      lastHeadline = res.news.length ? res.news[res.news.length - 1].headline : '';
+      $('#title').textContent = market.cfg.title;
+      if (!ready) buildBoard();
+      ready = true;
+      renderHeads();
+      renderCards();
+      renderView();
+    });
+  });
+  socket.on('disconnect', () => ($('#offline').hidden = false));
+  socket.on('tick', (t) => {
+    if (!ready) return;
+    market.applyTick(t);
+    renderCards();
+  });
+  socket.on('meta', (m) => {
+    if (!ready) return;
+    market.setMeta(m);
+    renderHeads();
+    renderView();
+  });
+  socket.on('board', (b) => {
+    board = b;
+    if (!ready) return;
+    const v = currentView();
+    if (v === 'ranking') renderRanking();
+    if (v === 'qr') renderQr();
+  });
+  socket.on('final', (f) => {
+    final = f;
+    if (ready) renderView();
+  });
+  socket.on('news', (item) => {
+    lastHeadline = item.headline;
+    if (!ready) return;
+    renderTape();
+    showNews(item);
+  });
+  socket.on('bell', ({ kind }) => (sounds[kind] || (() => {}))());
+  socket.on('roulette', (r) => ready && showRoulette(r));
+  socket.on('reset', () => location.reload());
+
+  setInterval(() => {
+    if (!ready) return;
+    if (market.meta.phase === 'open') {
+      statusPill($('#pill'));
+      statusPill($('#rank-pill'));
+    }
+  }, 250);
+  // Mantiene despierto el servidor gratuito aunque nadie esté operando.
+  setInterval(() => fetch('/healthz').catch(() => {}), 4 * 60 * 1000);
+</script>
+</body>
+</html>

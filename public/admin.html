@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pizarra · Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/base.css">
+<style>
+  body { font-size: 15px; }
+  .login { max-width: 360px; margin: 18vh auto 0; padding: 0 16px; }
+  .login h1 { font-size: 48px; margin: 8px 0 20px; }
+  .input { width: 100%; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; outline: none; }
+  .input:focus { border-color: var(--up); }
+  .btn { border: 1px solid var(--border); background: var(--card-2); border-radius: 10px; padding: 10px 14px; font-weight: 700; white-space: nowrap; }
+  .btn:hover { border-color: var(--muted); }
+  .btn.primary { background: var(--up); border-color: var(--up); color: var(--bg); }
+  .btn.danger { background: var(--down-bg); border-color: var(--down); color: var(--down); }
+  .btn.warn { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
+  .btn.small { padding: 6px 10px; font-size: 13px; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .error { color: var(--down); min-height: 20px; margin-top: 10px; font-size: 14px; }
+
+  .top {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: rgb(11 13 12 / 0.94);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+  }
+  .top .pill { font-size: 13px; }
+  .top .stat { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+  .top .stat b { color: var(--text); }
+  .top .spacer { flex: 1; }
+  .top .group { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  .cols { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; padding: 20px; align-items: start; }
+  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; padding: 16px; } .top { padding: 10px 16px; } }
+
+  .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+  .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin: 0 0 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .panel p.note { color: var(--muted); font-size: 13px; margin: 0 0 12px; line-height: 1.45; }
+
+  .block { border: 1px solid var(--border); border-radius: 12px; margin-bottom: 10px; overflow: hidden; }
+  .block.current { border-color: var(--up); }
+  .block > header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; background: var(--card-2); }
+  .block > header b { font-size: 15px; }
+  .block.current > header { background: var(--up-bg); }
+  .block .here { font-size: 12px; font-family: var(--font-mono); color: var(--up); font-weight: 700; }
+  .ev { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; padding: 10px 12px; border-top: 1px solid var(--border); align-items: center; }
+  .ev .h { font-weight: 500; }
+  .ev .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; font-size: 12px; }
+  .ev .acts { display: flex; gap: 6px; }
+  .ev.fired .h { color: var(--muted); }
+  .ev .done { font-family: var(--font-mono); font-size: 11px; color: var(--up); margin-top: 4px; }
+
+  .custom { display: grid; gap: 10px; }
+  .effects { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .effects label { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--muted); }
+  .effects input { width: 100%; margin-top: 3px; padding: 8px; font-family: var(--font-mono); font-size: 13px; }
+  @media (max-width: 500px) { .effects { grid-template-columns: repeat(3, 1fr); } }
+
+  .seg { display: flex; gap: 6px; flex-wrap: wrap; }
+  .seg .btn[aria-pressed='true'] { border-color: var(--up); color: var(--up); background: var(--up-bg); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-weight: 500; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 6px 4px; border-bottom: 1px solid var(--border); }
+  td { padding: 7px 4px; border-bottom: 1px solid var(--border); }
+  td.num, th.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .x { background: none; border: 0; color: var(--dim); font-size: 14px; padding: 2px 6px; }
+  .x:hover { color: var(--down); }
+  .scroll { max-height: 420px; overflow: auto; }
+
+  .reveal-steps { display: flex; gap: 4px; margin: 10px 0; }
+  .reveal-steps span { flex: 1; text-align: center; font-size: 11px; padding: 6px 2px; border-radius: 6px; background: var(--card-2); color: var(--muted); }
+  .reveal-steps span.on { background: var(--up-bg); color: var(--up); font-weight: 700; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .log { font-family: var(--font-mono); font-size: 12px; color: var(--muted); margin-top: 8px; min-height: 16px; }
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--card-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; z-index: 50; font-size: 14px; }
+  .toast.err { border-color: var(--down); color: var(--down); }
+  .links { display: flex; gap: 14px; flex-wrap: wrap; font-size: 13px; }
+  .links a { color: var(--up); }
+</style>
+</head>
+<body>
+
+<section class="login" id="login">
+  <div class="eyebrow">Panel de control</div>
+  <h1 class="display">La pizarra de trii</h1>
+  <form id="login-form">
+    <input class="input" id="pin" type="password" placeholder="PIN de admin" autocomplete="current-password" required>
+    <button class="btn primary" style="width:100%;margin-top:10px">Entrar</button>
+    <div class="error" id="login-error"></div>
+  </form>
+</section>
+
+<div id="app" hidden>
+  <div class="top">
+    <span class="pill" id="pill">Pre-apertura</span>
+    <span class="stat"><b id="count">0</b> jugadores</span>
+    <span class="spacer"></span>
+    <div class="group" id="open-group">
+      <button class="btn primary" data-open="60">Abrir 60s</button>
+      <button class="btn primary" data-open="90">Abrir 90s</button>
+      <button class="btn primary" data-open="120">Abrir 2 min</button>
+      <button class="btn" data-open="">Abrir sin límite</button>
+    </div>
+    <div class="group">
+      <button class="btn" id="extend">+30s</button>
+      <button class="btn danger" id="close">Cerrar mercado</button>
+      <button class="btn warn" id="spin-top">🎲 Ruleta</button>
+    </div>
+  </div>
+
+  <div class="cols">
+    <div>
+      <div class="panel">
+        <h2>Agenda y noticias <span class="muted" style="text-transform:none;letter-spacing:0">Toca un bloque para marcarlo como actual</span></h2>
+        <p class="note">Flujo sugerido por bloque: 🤫 rumor mientras presentan → 📣 noticia al terminar → abrir mercado 60–90s.</p>
+        <div id="blocks"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Noticia personalizada</h2>
+        <form class="custom" id="custom">
+          <input class="input" id="c-headline" maxlength="140" placeholder="🚨 Titular de la noticia">
+          <div class="effects" id="c-effects"></div>
+          <div class="row">
+            <button class="btn primary">📣 Lanzar noticia</button>
+            <span class="muted" style="font-size:13px">Porcentajes: 200 = +200%, -50 = -50% (máx. +500%, mín. -90%)</span>
+          </div>
+        </form>
+      </div>
+
+      <div class="panel">
+        <h2>Rumor falso</h2>
+        <p class="note">Le manda a unas pocas personas al azar un rumor inventado sobre una acción al azar. Puro caos 😈</p>
+        <button class="btn" id="fake">🎭 Enviar rumor falso</button>
+        <div class="log" id="fake-log"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel">
+        <h2>🎲 Eventos sorpresa</h2>
+        <p class="note">La pantalla muestra una ruleta que gira unos segundos y cae en un evento. Los precios se mueven cuando cae. Se editan en <span class="mono">config.js</span>.</p>
+        <button class="btn warn" id="spin" style="width:100%;padding:14px">🎲 Girar la ruleta (al azar)</button>
+        <div id="surprises" style="margin-top:10px"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Pantalla grande</h2>
+        <div class="seg" id="views">
+          <button class="btn" data-view="auto">Auto</button>
+          <button class="btn" data-view="board">Pizarra</button>
+          <button class="btn" data-view="ranking">Ranking</button>
+          <button class="btn" data-view="qr">QR</button>
+        </div>
+        <div class="links" style="margin-top:12px">
+          <a href="/pantalla" target="_blank">Abrir pantalla ↗</a>
+          <a href="/" target="_blank">Abrir vista jugador ↗</a>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Cierre y premiación</h2>
+        <div class="row">
+          <button class="btn warn" id="finish">🔔 Campanazo final</button>
+          <button class="btn small" id="unfinish">Deshacer cierre</button>
+        </div>
+        <div class="reveal-steps" id="steps">
+          <span>Precios</span><span>10→4</span><span>3º</span><span>2º</span><span>1º 🎉</span><span>Premios</span>
+        </div>
+        <div class="row">
+          <button class="btn" id="prev">← Atrás</button>
+          <button class="btn primary" id="next">Revelar siguiente →</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Precios</h2>
+        <table><thead><tr><th>Acción</th><th class="num">Precio</th><th class="num">Var.</th></tr></thead><tbody id="prices"></tbody></table>
+      </div>
+
+      <div class="panel">
+        <h2>Jugadores <span class="muted" id="players-count" style="text-transform:none"></span></h2>
+        <div class="scroll">
+          <table><thead><tr><th>#</th><th>Jugador</th><th class="num">Valor</th><th class="num">Rent.</th><th class="num">Ops</th><th></th></tr></thead><tbody id="players"></tbody></table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Zona peligrosa</h2>
+        <p class="note">Borra jugadores, precios y noticias. Úsalo para limpiar después del ensayo.</p>
+        <button class="btn danger" id="reset">Reiniciar juego</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/common.js"></script>
+<script>
+  const session = storage('sessionStorage');
+  const socket = io({ autoConnect: false });
+  let pin = session.getItem('pizarra:pin') || '';
+  let fired = {};
+  let rumors = {};
+  let ready = false;
+
+  function toast(msg, err) {
+    const el = document.createElement('div');
+    el.className = 'toast' + (err ? ' err' : '');
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2600);
+  }
+
+  async function act(payload) {
+    const res = await emitAck(socket, 'admin', payload);
+    if (!res.ok) toast(res.error || 'Error', true);
+    return res;
+  }
+
+  $('#login-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    pin = $('#pin').value;
+    socket.connect();
+  });
+
+  socket.on('connect', () => {
+    socket.emit('hello', { role: 'admin', pin }, (res) => {
+      if (!res.ok) {
+        session.removeItem('pizarra:pin');
+        $('#login').hidden = false;
+        $('#app').hidden = true;
+        $('#login-error').textContent = res.error;
+        socket.disconnect();
+        return;
+      }
+      session.setItem('pizarra:pin', pin);
+      market.load(res);
+      fired = res.fired || {};
+      rumors = res.rumors || {};
+      ready = true;
+      $('#login').hidden = true;
+      $('#app').hidden = false;
+      buildCustom();
+      renderSurprises(res.surprises || []);
+      renderAll();
+    });
+  });
+  if (pin) socket.connect();
+
+  // ---------- Render ----------
+  function renderAll() {
+    renderTop();
+    renderBlocks();
+    renderPrices();
+    renderViews();
+    renderSteps();
+  }
+
+  function renderTop() {
+    const m = market.meta;
+    const pill = $('#pill');
+    pill.className = 'pill';
+    if (m.phase === 'open') {
+      const rem = market.remaining();
+      pill.classList.add(rem != null && rem <= 10000 ? 'ending' : 'open');
+      pill.textContent = rem != null ? `Abierto · ${fmt.clock(rem)}` : 'Abierto';
+    } else if (m.phase === 'finished') {
+      pill.classList.add('final');
+      pill.textContent = 'Finalizado';
+    } else pill.textContent = m.phase === 'lobby' ? 'Pre-apertura' : 'Cerrado';
+    $('#count').textContent = m.playerCount;
+    $('#extend').disabled = !(m.phase === 'open' && m.windowEndsAt);
+    $('#close').disabled = m.phase !== 'open';
+    for (const b of document.querySelectorAll('[data-open]')) b.disabled = m.phase === 'finished';
+  }
+
+  function renderBlocks() {
+    const cur = market.meta.currentBlock;
+    $('#blocks').innerHTML = market.cfg.blocks.map((b) => `
+      <div class="block ${b.id === cur ? 'current' : ''}">
+        <header data-block="${esc(b.id)}" style="cursor:pointer"><b>${esc(b.title)}</b>${b.id === cur ? '<span class="here">● AHORA</span>' : '<span class="muted" style="font-size:12px">marcar como actual</span>'}</header>
+        ${b.events.map((ev) => `
+          <div class="ev ${fired[ev.id] ? 'fired' : ''}">
+            <div>
+              <div class="h">${esc(ev.headline)}</div>
+              <div class="chips">${effectChips(ev.effects) || '<span class="muted">Sin efecto en precios</span>'}</div>
+              ${fired[ev.id] ? `<div class="done">✓ lanzada ${fmt.time(fired[ev.id])}</div>` : ''}
+              ${rumors[ev.id] ? `<div class="done">🤫 rumor enviado ${fmt.time(rumors[ev.id])}</div>` : ''}
+            </div>
+            <div class="acts">
+              ${ev.rumor ? `<button class="btn small" data-rumor="${esc(ev.id)}" title="${esc(ev.rumor)}">🤫 Rumor</button>` : ''}
+              <button class="btn small ${fired[ev.id] ? '' : 'primary'}" data-news="${esc(ev.id)}">📣 Lanzar</button>
+            </div>
+          </div>`).join('')}
+      </div>`).join('');
+  }
+
+  $('#blocks').addEventListener('click', async (e) => {
+    const h = e.target.closest('[data-block]');
+    if (h) return act({ action: 'block', id: h.dataset.block });
+    const n = e.target.closest('[data-news]');
+    if (n) {
+      if (fired[n.dataset.news] && !confirm('Esta noticia ya se lanzó. ¿Lanzarla otra vez?')) return;
+      const res = await act({ action: 'news', eventId: n.dataset.news });
+      if (res.ok) {
+        fired = res.fired;
+        renderBlocks();
+        toast('📣 Noticia lanzada');
+      }
+      return;
+    }
+    const r = e.target.closest('[data-rumor]');
+    if (r) {
+      const res = await act({ action: 'rumor', eventId: r.dataset.rumor });
+      if (res.ok) {
+        rumors = res.rumors;
+        renderBlocks();
+        toast(res.to.length ? `🤫 Rumor enviado a: ${res.to.join(', ')}` : 'No hay jugadores todavía', !res.to.length);
+      }
+    }
+  });
+
+  function buildCustom() {
+    const opts = [['ALL', 'Todo'], ...market.cfg.stocks.map((s) => [s.ticker, '$' + s.ticker])];
+    $('#c-effects').innerHTML = opts.map(([t, l]) => `<label>${esc(l)}<input class="input" data-t="${esc(t)}" inputmode="decimal" placeholder="0"></label>`).join('');
+  }
+  $('#custom').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const effects = {};
+    for (const i of document.querySelectorAll('#c-effects input')) {
+      const v = parseFloat(i.value.replace(',', '.'));
+      if (Number.isFinite(v) && v !== 0) effects[i.dataset.t] = v / 100;
+    }
+    const res = await act({ action: 'news', headline: $('#c-headline').value, effects });
+    if (res.ok) {
+      $('#custom').reset();
+      toast('📣 Noticia lanzada');
+    }
+  });
+
+  function surpriseChips(effects) {
+    const label = { ALL: 'Todo el mercado', RANDOM: '🎲 Una al azar', RANDOM2: '🎲 Otra al azar' };
+    return Object.entries(effects || {})
+      .map(([k, v]) => `<span class="chip ${v >= 0 ? 'up' : 'down'}">${esc(label[k] || '$' + k)} ${fmt.arrow(v)} ${fmt.pct(v)}</span>`)
+      .join('');
+  }
+  function renderSurprises(list) {
+    $('#surprises').innerHTML = list.map((ev) => `
+      <div class="ev">
+        <div>
+          <div class="h">${esc(ev.headline.replace(/\{t2?\}|\{area2?\}/g, '🎲'))}</div>
+          <div class="chips">${surpriseChips(ev.effects)}</div>
+        </div>
+        <div class="acts">
+          <button class="btn small" data-surprise="${esc(ev.id)}" title="La ruleta gira y cae en este">🎯 Ruleta</button>
+          <button class="btn small" data-surprise="${esc(ev.id)}" data-direct="1" title="Sin ruleta">📣 Directo</button>
+        </div>
+      </div>`).join('');
+  }
+  async function surprise(payload) {
+    const res = await act({ action: 'surprise', ...payload });
+    if (res.ok) toast(`🎲 ${res.headline}`);
+  }
+  $('#spin').onclick = () => surprise({});
+  $('#spin-top').onclick = () => surprise({});
+  $('#surprises').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-surprise]');
+    if (b) surprise({ id: b.dataset.surprise, direct: !!b.dataset.direct });
+  });
+
+  $('#fake').onclick = async () => {
+    const res = await act({ action: 'fakeRumor' });
+    if (res.ok) $('#fake-log').textContent = res.to.length ? `“${res.text}” → ${res.to.join(', ')}` : 'No hay jugadores todavía';
+  };
+
+  function renderPrices() {
+    $('#prices').innerHTML = market.cfg.stocks.map((s) => {
+      const r = market.change(s.ticker);
+      const hot = market.hot === s.ticker && market.meta.phase === 'open' ? ' 🔥' : '';
+      return `<tr><td><b class="mono">$${esc(s.ticker)}</b> <span class="muted">${esc(s.name)}</span>${hot}</td><td class="num">${fmt.num(market.prices[s.ticker])}</td><td class="num ${r >= 0 ? 'up-text' : 'down-text'}">${fmt.pct(r)}</td></tr>`;
+    }).join('');
+  }
+
+  function renderViews() {
+    for (const b of document.querySelectorAll('[data-view]')) b.setAttribute('aria-pressed', b.dataset.view === market.meta.view);
+  }
+
+  function renderSteps() {
+    const m = market.meta;
+    [...$('#steps').children].forEach((el, i) => el.classList.toggle('on', m.phase === 'finished' && i === m.reveal));
+    $('#finish').disabled = m.phase === 'finished';
+    $('#unfinish').disabled = m.phase !== 'finished';
+    $('#next').disabled = m.phase !== 'finished' || m.reveal >= 5;
+    $('#prev').disabled = m.phase !== 'finished' || m.reveal <= 0;
+  }
+
+  function renderPlayers(list) {
+    $('#players-count').textContent = `(${list.length})`;
+    $('#players').innerHTML = list.map((p, i) => `
+      <tr><td class="mono">${i + 1}</td><td>${esc(p.emoji)} ${esc(p.name)} <span class="muted">${esc(p.area)}</span></td>
+      <td class="num">${fmt.money(p.value)}</td><td class="num ${p.ret >= 0 ? 'up-text' : 'down-text'}">${fmt.pct(p.ret)}</td>
+      <td class="num">${p.trades}</td><td><button class="x" data-kick="${esc(p.id)}" data-name="${esc(p.name)}" title="Sacar del juego">✕</button></td></tr>`).join('');
+  }
+  $('#players').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-kick]');
+    if (b && confirm(`¿Sacar a "${b.dataset.name}" del juego?`)) act({ action: 'kick', playerId: b.dataset.kick });
+  });
+
+  // ---------- Controles ----------
+  document.querySelectorAll('[data-open]').forEach((b) => {
+    b.onclick = () => act({ action: 'open', seconds: b.dataset.open ? Number(b.dataset.open) : null });
+  });
+  $('#extend').onclick = () => act({ action: 'extend', seconds: 30 });
+  $('#close').onclick = () => act({ action: 'close' });
+  $('#views').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-view]');
+    if (b) act({ action: 'view', view: b.dataset.view });
+  });
+  $('#finish').onclick = () => {
+    if (confirm('¿Cerrar el mercado definitivamente y pasar a la premiación?')) act({ action: 'finish' });
+  };
+  $('#unfinish').onclick = () => act({ action: 'unfinish' });
+  $('#next').onclick = () => act({ action: 'reveal', delta: 1 });
+  $('#prev').onclick = () => act({ action: 'reveal', delta: -1 });
+  $('#reset').onclick = () => {
+    const c = prompt('Esto borra TODO. Escribe REINICIAR para confirmar:');
+    if (c) act({ action: 'reset', confirm: c });
+  };
+
+  // ---------- Socket ----------
+  socket.on('tick', (t) => {
+    if (!ready) return;
+    market.applyTick(t);
+    renderPrices();
+  });
+  socket.on('meta', (m) => {
+    if (!ready) return;
+    market.setMeta(m);
+    renderAll();
+  });
+  socket.on('players', renderPlayers);
+  socket.on('reset', () => location.reload());
+
+  setInterval(() => {
+    if (ready && market.meta.phase === 'open') renderTop();
+  }, 250);
+  setInterval(() => fetch('/healthz').catch(() => {}), 4 * 60 * 1000);
+</script>
+</body>
+</html>

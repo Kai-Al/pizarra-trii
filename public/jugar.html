@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d0c">
+<title>La pizarra de trii</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/base.css">
+<style>
+  body { min-height: 100dvh; }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 0 16px calc(32px + env(safe-area-inset-bottom)); }
+
+  /* ---------- Entrada ---------- */
+  .join { padding-top: 40px; }
+  .join .eyebrow { font-size: 13px; }
+  .join h1 { font-size: 64px; margin: 10px 0 14px; }
+  .join .lead { color: var(--muted); font-size: 17px; line-height: 1.45; margin: 0 0 28px; }
+  .join .lead strong { color: var(--text); }
+  label.field { display: block; margin-bottom: 18px; }
+  label.field > span { display: block; font-size: 13px; color: var(--muted); margin-bottom: 8px; font-weight: 500; }
+  .input, select.input {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 17px;
+    outline: none;
+    appearance: none;
+  }
+  .input:focus { border-color: var(--up); }
+  select.input { background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 22px) 50%, calc(100% - 16px) 50%; background-size: 6px 6px; background-repeat: no-repeat; }
+  .emojis { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+  .emojis button { aspect-ratio: 1; font-size: 24px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 0; }
+  .emojis button[aria-pressed='true'] { border-color: var(--up); background: var(--up-bg); }
+  .btn {
+    width: 100%;
+    border: 0;
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 17px;
+    font-weight: 700;
+    background: var(--up);
+    color: var(--bg);
+  }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn.sell { background: var(--down); color: var(--bg); }
+  .error { color: var(--down); font-size: 14px; min-height: 20px; margin: 10px 0 0; }
+
+  /* ---------- App ---------- */
+  .status {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    margin: 0 -16px;
+    padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+    background: rgb(11 13 12 / 0.92);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .status .pill { font-size: 12px; padding: 7px 12px; }
+  .status .rank { font-family: var(--font-mono); font-weight: 700; font-size: 13px; color: var(--muted); white-space: nowrap; }
+  .status .rank b { color: var(--text); }
+  .hint { font-size: 14px; color: var(--muted); text-align: center; margin: 14px 0 0; }
+
+  .me { display: flex; align-items: center; gap: 10px; margin: 18px 0 12px; font-size: 15px; color: var(--muted); }
+  .me .emo { font-size: 26px; }
+  .me b { color: var(--text); }
+
+  .portfolio { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+  .portfolio .label { font-size: 13px; color: var(--muted); }
+  .portfolio .value { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 6px 0 14px; }
+  .portfolio .value .mono { font-size: 34px; font-weight: 800; }
+  .portfolio .value .badge { font-size: 14px; }
+  .portfolio .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-top: 1px solid var(--border); padding-top: 12px; }
+  .portfolio .split div { font-size: 13px; color: var(--muted); }
+  .portfolio .split b { display: block; font-family: var(--font-mono); font-size: 16px; color: var(--text); margin-top: 3px; }
+
+  h2.section { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 26px 0 10px; }
+
+  .rows { display: flex; flex-direction: column; gap: 8px; }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 64px auto;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .row:active { background: var(--card-2); }
+  .row .t { font-family: var(--font-mono); font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 6px; }
+  .row .n { font-size: 13px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row svg { width: 64px; height: 28px; }
+  .row .right { text-align: right; }
+  .row .p { font-family: var(--font-mono); font-weight: 700; font-size: 16px; }
+  .row .r { font-family: var(--font-mono); font-weight: 700; font-size: 13px; margin-top: 2px; }
+  .row .own { width: 7px; height: 7px; border-radius: 50%; background: var(--up); }
+  .row .hot { font-size: 12px; }
+  .holding .n b { color: var(--text); font-weight: 500; }
+
+  /* ---------- Hoja de compra/venta ---------- */
+  .scrim { position: fixed; inset: 0; background: rgb(0 0 0 / 0.6); z-index: 20; opacity: 0; transition: opacity 0.2s; }
+  .scrim.show { opacity: 1; }
+  .sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 21;
+    max-width: 520px;
+    margin: 0 auto;
+    background: #121614;
+    border: 1px solid var(--border);
+    border-bottom: 0;
+    border-radius: 20px 20px 0 0;
+    padding: 10px 16px calc(20px + env(safe-area-inset-bottom));
+    transform: translateY(100%);
+    transition: transform 0.28s cubic-bezier(0.2, 0.9, 0.2, 1);
+    max-height: 92dvh;
+    overflow-y: auto;
+  }
+  .sheet.show { transform: none; }
+  .sheet .grab { width: 40px; height: 4px; border-radius: 4px; background: var(--dim); margin: 0 auto 14px; }
+  .sheet .head { display: flex; justify-content: space-between; align-items: flex-start; }
+  .sheet .t { font-family: var(--font-mono); font-weight: 800; font-size: 22px; }
+  .sheet .n { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .sheet .close { background: var(--card); border: 1px solid var(--border); border-radius: 50%; width: 36px; height: 36px; font-size: 18px; color: var(--muted); }
+  .sheet .quote { display: flex; align-items: baseline; gap: 10px; margin: 14px 0 6px; }
+  .sheet .quote .mono { font-size: 34px; font-weight: 800; }
+  .sheet .quote .badge { font-size: 13px; }
+  .sheet svg.big { width: 100%; height: 80px; display: block; margin: 6px 0 12px; }
+  .sheet .have { font-size: 14px; color: var(--muted); margin-bottom: 14px; }
+  .sheet .have b { color: var(--text); font-family: var(--font-mono); }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 4px; margin-bottom: 14px; }
+  .seg button { border: 0; background: transparent; padding: 11px; border-radius: 9px; font-weight: 700; color: var(--muted); }
+  .seg button[aria-pressed='true'] { background: var(--up-bg); color: var(--up); }
+  .seg button.sell[aria-pressed='true'] { background: var(--down-bg); color: var(--down); }
+  .amount { position: relative; }
+  .amount span { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-family: var(--font-mono); font-size: 22px; color: var(--muted); }
+  .amount input { padding-left: 38px; font-family: var(--font-mono); font-size: 22px; font-weight: 700; }
+  .quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0 12px; }
+  .quick button { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 4px; font-family: var(--font-mono); font-weight: 700; font-size: 14px; }
+  .quick button[aria-pressed='true'] { border-color: var(--text); }
+  .preview { font-size: 14px; color: var(--muted); min-height: 20px; margin-bottom: 14px; }
+  .preview b { color: var(--text); font-family: var(--font-mono); }
+
+  /* ---------- Avisos ---------- */
+  .toasts { position: fixed; top: calc(60px + env(safe-area-inset-top)); left: 0; right: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; padding: 0 16px; }
+  .toast { max-width: 448px; width: 100%; background: var(--card-2); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; font-size: 14px; box-shadow: 0 10px 30px rgb(0 0 0 / 0.5); animation: drop 0.3s cubic-bezier(0.2, 0.9, 0.2, 1.2) both; }
+  .toast.ok { border-color: var(--up); }
+  .toast.err { border-color: var(--down); }
+  .toast.news { border-left: 5px solid var(--up); }
+  .toast.news.down { border-left-color: var(--down); }
+  .toast .label { font-family: var(--font-mono); font-weight: 800; font-size: 11px; letter-spacing: 0.08em; color: var(--up); }
+  .toast.news.down .label { color: var(--down); }
+  .toast .h { font-weight: 700; font-size: 15px; margin: 4px 0 8px; }
+  .toast .chips { display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px; }
+  .toast.out { animation: lift 0.3s ease-in both; }
+  @keyframes drop { from { transform: translateY(-20px); opacity: 0; } }
+  @keyframes lift { to { transform: translateY(-20px); opacity: 0; } }
+
+  .modal { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 24px; background: rgb(0 0 0 / 0.7); }
+  .modal .box { max-width: 380px; width: 100%; background: #121614; border: 1px solid var(--border); border-radius: 20px; padding: 24px; text-align: center; animation: drop 0.35s cubic-bezier(0.2, 0.9, 0.2, 1.3) both; }
+  .modal .icon { font-size: 52px; }
+  .modal h3 { font-size: 22px; margin: 8px 0 10px; }
+  .modal p { color: var(--muted); font-size: 16px; line-height: 1.45; margin: 0 0 20px; }
+  .modal p.quote { color: var(--text); font-size: 18px; font-weight: 500; }
+  .modal .big { font-family: var(--font-display); font-size: 72px; line-height: 1; margin: 8px 0; }
+  .modal .awards { display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px; font-weight: 700; }
+  .offline { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); z-index: 60; font-family: var(--font-mono); font-size: 12px; padding: 8px 14px; border-radius: 999px; background: var(--warn-bg); color: var(--warn); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <!-- Entrada -->
+  <section class="join" id="join" hidden>
+    <div class="eyebrow" id="join-eyebrow">Pre-apertura</div>
+    <h1 class="display">La pizarra<br>de trii</h1>
+    <p class="lead">Recibes <strong id="join-cash">$1.000</strong> para invertir en las áreas de trii. Compra, vende y gana quien saque la mayor rentabilidad.</p>
+    <form id="join-form" autocomplete="off">
+      <label class="field"><span>Tu nombre</span><input class="input" id="name" maxlength="18" placeholder="Ej: Ana Gómez" required></label>
+      <label class="field"><span>Tu área</span><select class="input" id="area"></select></label>
+      <div class="field"><label class="field" style="margin:0"><span>Tu avatar</span></label><div class="emojis" id="emojis"></div></div>
+      <button class="btn" id="join-btn" type="submit" style="margin-top:22px">Entrar al mercado</button>
+      <p class="error" id="join-error"></p>
+    </form>
+  </section>
+
+  <!-- App -->
+  <section id="app" hidden>
+    <div class="status">
+      <span class="pill" id="pill">Mercado cerrado</span>
+      <span class="rank" id="rank"></span>
+    </div>
+    <p class="hint" id="hint" hidden></p>
+    <div class="me"><span class="emo" id="me-emo"></span><span><b id="me-name"></b> · <span id="me-area"></span></span></div>
+
+    <div class="portfolio">
+      <div class="label">Tu portafolio</div>
+      <div class="value"><span class="mono" id="pf-value">$1.000,00</span><span id="pf-ret"></span></div>
+      <div class="split">
+        <div>Efectivo<b id="pf-cash">$1.000,00</b></div>
+        <div>Invertido<b id="pf-inv">$0,00</b></div>
+      </div>
+    </div>
+
+    <div id="holdings-wrap" hidden>
+      <h2 class="section">Mis acciones</h2>
+      <div class="rows" id="holdings"></div>
+    </div>
+
+    <h2 class="section">Mercado</h2>
+    <div class="rows" id="stocks"></div>
+  </section>
+</div>
+
+<!-- Hoja de compra/venta -->
+<div class="scrim" id="scrim" hidden></div>
+<section class="sheet" id="sheet" aria-modal="true" role="dialog" hidden>
+  <div class="grab"></div>
+  <div class="head">
+    <div><div class="t" id="s-t"></div><div class="n" id="s-n"></div></div>
+    <button class="close" id="s-close" aria-label="Cerrar">✕</button>
+  </div>
+  <div class="quote"><span class="mono" id="s-price"></span><span id="s-badge"></span></div>
+  <svg class="big" id="s-spark"></svg>
+  <div class="have" id="s-have"></div>
+  <div class="seg">
+    <button id="s-buy" aria-pressed="true">Comprar</button>
+    <button id="s-sell" class="sell" aria-pressed="false">Vender</button>
+  </div>
+  <div class="amount"><span>$</span><input class="input" id="s-amount" inputmode="decimal" placeholder="0" autocomplete="off"></div>
+  <div class="quick" id="s-quick"></div>
+  <div class="preview" id="s-preview"></div>
+  <button class="btn" id="s-go">Comprar</button>
+</section>
+
+<div class="toasts" id="toasts"></div>
+<div class="offline" id="offline" hidden>Reconectando…</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/common.js"></script>
+<script>
+  const EMOJIS = ['🦊', '🐼', '🐸', '🦁', '🐯', '🐵', '🦄', '🐙', '🐳', '🦖', '🐝', '🦉', '🐧', '🐨', '🦩', '🌵'];
+  const store = storage('localStorage');
+  const socket = io();
+  let me = null;
+  let ready = false;
+  let rank = null;
+  let finalMe = null;
+  let emoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+
+  // ---------- Entrada ----------
+  function renderJoin() {
+    $('#join-eyebrow').textContent = `${market.blockTitle()} · ${market.cfg.date}`;
+    $('#join-cash').textContent = fmt.money(market.cfg.startingCash).replace(',00', '');
+    const sel = $('#area');
+    if (!sel.options.length) {
+      sel.innerHTML = '<option value="" disabled selected>Elige tu área</option>' + market.cfg.areas.map((a) => `<option>${esc(a)}</option>`).join('');
+    }
+    $('#emojis').innerHTML = EMOJIS.map((e) => `<button type="button" aria-pressed="${e === emoji}" data-e="${e}">${e}</button>`).join('');
+  }
+  $('#emojis').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    emoji = b.dataset.e;
+    for (const x of $('#emojis').children) x.setAttribute('aria-pressed', x === b);
+  });
+  $('#join-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = $('#name').value.trim();
+    const area = $('#area').value;
+    if (!area) return ($('#join-error').textContent = 'Elige tu área');
+    $('#join-btn').disabled = true;
+    const res = await emitAck(socket, 'join', { name, area, emoji });
+    $('#join-btn').disabled = false;
+    if (!res.ok) return ($('#join-error').textContent = res.error);
+    me = res.me;
+    store.setItem('pizarra:id', me.id);
+    showApp();
+  });
+
+  function showApp() {
+    $('#join').hidden = true;
+    $('#app').hidden = false;
+    $('#me-emo').textContent = me.emoji;
+    $('#me-name').textContent = me.name;
+    $('#me-area').textContent = me.area;
+    buildRows();
+    renderAll();
+  }
+
+  // ---------- App ----------
+  const rows = {};
+  function buildRows() {
+    const box = $('#stocks');
+    box.innerHTML = '';
+    for (const s of market.cfg.stocks) {
+      const b = document.createElement('button');
+      b.className = 'row';
+      b.innerHTML = `<div><div class="t">$${esc(s.ticker)} <span class="own" hidden></span><span class="hot" hidden>🔥</span></div><div class="n">${esc(s.name)}</div></div><svg></svg><div class="right"><div class="p"></div><div class="r"></div></div>`;
+      b.onclick = () => openSheet(s.ticker);
+      box.appendChild(b);
+      rows[s.ticker] = { el: b, p: $('.p', b), r: $('.r', b), svg: $('svg', b), own: $('.own', b), hot: $('.hot', b) };
+    }
+  }
+
+  function renderAll() {
+    if (!me) return;
+    renderStatus();
+    renderPortfolio();
+    renderRows();
+    if (sheet.ticker) renderSheet();
+  }
+
+  function renderStatus() {
+    const m = market.meta;
+    const pill = $('#pill');
+    const hint = $('#hint');
+    pill.className = 'pill';
+    hint.hidden = true;
+    if (m.phase === 'open') {
+      const rem = market.remaining();
+      pill.classList.add(rem != null && rem <= 10000 ? 'ending' : 'open');
+      pill.textContent = rem != null ? `Abierto · ${fmt.clock(rem)}` : 'Mercado abierto';
+    } else if (m.phase === 'lobby') {
+      pill.textContent = 'Pre-apertura';
+      hint.hidden = false;
+      hint.textContent = 'Ya estás dentro 🎉 El mercado abre en un momento.';
+    } else if (m.phase === 'finished') {
+      pill.classList.add('final');
+      pill.textContent = 'Mercado cerrado';
+      hint.hidden = false;
+      hint.textContent = 'Se acabó 🔔 Mira la pantalla grande 👀';
+    } else {
+      pill.textContent = 'Mercado cerrado';
+      hint.hidden = false;
+      hint.textContent = 'Pon atención a la presentación 👀 Las noticias mueven los precios.';
+    }
+    $('#rank').innerHTML = rank && m.phase !== 'finished' ? `Vas <b>#${rank.pos}</b> de ${rank.total}` : finalMe ? `Quedaste <b>#${finalMe.pos}</b> de ${finalMe.total}` : '';
+  }
+
+  function renderPortfolio() {
+    const value = market.valueOf(me);
+    const ret = value / market.cfg.startingCash - 1;
+    $('#pf-value').textContent = fmt.money(value);
+    $('#pf-ret').innerHTML = badge(ret);
+    $('#pf-cash').textContent = fmt.money(me.cash);
+    $('#pf-inv').textContent = fmt.money(value - me.cash);
+
+    const list = Object.entries(me.holdings || {});
+    $('#holdings-wrap').hidden = list.length === 0;
+    $('#holdings').innerHTML = list.map(([t, sh]) => {
+      const val = sh * market.prices[t];
+      const cost = (me.cost && me.cost[t]) || val;
+      const pnl = val / cost - 1;
+      return `<button class="row holding" data-t="${esc(t)}">
+        <div><div class="t">$${esc(t)}</div><div class="n"><b>${fmt.shares(sh)}</b> acciones</div></div>
+        <span></span>
+        <div class="right"><div class="p">${fmt.money(val)}</div><div class="r ${pnl >= 0 ? 'up-text' : 'down-text'}">${fmt.arrow(pnl)} ${fmt.pct(pnl)}</div></div>
+      </button>`;
+    }).join('');
+  }
+  $('#holdings').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-t]');
+    if (b) openSheet(b.dataset.t, 'sell');
+  });
+
+  function renderRows() {
+    for (const s of market.cfg.stocks) {
+      const r = rows[s.ticker];
+      const ch = market.change(s.ticker);
+      r.p.textContent = fmt.num(market.prices[s.ticker]);
+      r.r.textContent = `${fmt.arrow(ch)} ${fmt.pct(ch)}`;
+      r.r.className = 'r ' + (ch >= 0 ? 'up-text' : 'down-text');
+      r.own.hidden = !(me.holdings && me.holdings[s.ticker]);
+      r.hot.hidden = market.hot !== s.ticker || market.meta.phase !== 'open';
+      sparkline(r.svg, market.history[s.ticker], market.cfg.ipoPrice, { w: 64, h: 28, pad: 2, stroke: 1.8, fill: false, maxPoints: 40 });
+    }
+  }
+
+  // ---------- Hoja de compra/venta ----------
+  const sheet = { ticker: null, side: 'buy', pct: null };
+  function openSheet(ticker, side = 'buy') {
+    sheet.ticker = ticker;
+    sheet.pct = null;
+    setSide(me.holdings && me.holdings[ticker] ? side : 'buy');
+    $('#s-amount').value = '';
+    $('#scrim').hidden = false;
+    $('#sheet').hidden = false;
+    requestAnimationFrame(() => {
+      $('#scrim').classList.add('show');
+      $('#sheet').classList.add('show');
+    });
+    renderSheet();
+  }
+  function closeSheet() {
+    sheet.ticker = null;
+    $('#scrim').classList.remove('show');
+    $('#sheet').classList.remove('show');
+    setTimeout(() => {
+      if (!sheet.ticker) {
+        $('#scrim').hidden = true;
+        $('#sheet').hidden = true;
+      }
+    }, 280);
+  }
+  $('#scrim').onclick = closeSheet;
+  $('#s-close').onclick = closeSheet;
+
+  function setSide(side) {
+    sheet.side = side;
+    sheet.pct = null;
+    $('#s-amount').value = '';
+    $('#s-buy').setAttribute('aria-pressed', side === 'buy');
+    $('#s-sell').setAttribute('aria-pressed', side === 'sell');
+    const quick = side === 'buy'
+      ? [['100', 100], ['250', 250], ['500', 500], ['Todo', 'all']]
+      : [['25%', 0.25], ['50%', 0.5], ['75%', 0.75], ['Todo', 1]];
+    $('#s-quick').innerHTML = quick.map(([l, v]) => `<button type="button" data-v="${v}">${side === 'buy' && v !== 'all' ? '$' + l : l}</button>`).join('');
+    renderSheet();
+  }
+  $('#s-buy').onclick = () => setSide('buy');
+  $('#s-sell').onclick = () => {
+    if (!(me.holdings && me.holdings[sheet.ticker])) return toast(`Todavía no tienes $${sheet.ticker} para vender`, 'err');
+    setSide('sell');
+  };
+
+  $('#s-quick').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const v = b.dataset.v;
+    if (sheet.side === 'buy') {
+      sheet.pct = null;
+      const usd = v === 'all' ? me.cash : Math.min(Number(v), me.cash);
+      $('#s-amount').value = usd ? String(Math.floor(usd * 100) / 100).replace('.', ',') : '';
+    } else {
+      sheet.pct = Number(v);
+      $('#s-amount').value = '';
+    }
+    renderSheet();
+  });
+  $('#s-amount').addEventListener('input', () => {
+    sheet.pct = null;
+    renderSheet();
+  });
+
+  function parseAmount(str) {
+    let s = String(str || '').replace(/[^\d.,]/g, '');
+    if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+    else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  // Misma curva de impacto que el servidor, para mostrar un estimado honesto.
+  function quote() {
+    const k = market.cfg.impactPerUsd;
+    const P = market.prices[sheet.ticker];
+    const held = (me.holdings && me.holdings[sheet.ticker]) || 0;
+    if (sheet.side === 'buy') {
+      const usd = Math.min(parseAmount($('#s-amount').value), me.cash);
+      if (usd <= 0) return null;
+      const shares = (1 - Math.exp(-k * usd)) / (k * P);
+      return { usd, shares, avg: usd / shares };
+    }
+    let shares;
+    if (sheet.pct != null) shares = held * sheet.pct;
+    else {
+      const usd = parseAmount($('#s-amount').value);
+      if (usd <= 0) return null;
+      shares = Math.min(held, (Math.exp(k * usd) - 1) / (k * P));
+    }
+    if (shares <= 0) return null;
+    const usd = Math.log(1 + k * P * shares) / k;
+    return { usd, shares, avg: usd / shares, all: shares >= held * 0.9999 };
+  }
+
+  function renderSheet() {
+    const t = sheet.ticker;
+    if (!t) return;
+    const s = market.cfg.stocks.find((x) => x.ticker === t);
+    const ch = market.change(t);
+    $('#s-t').textContent = '$' + t;
+    $('#s-n').textContent = s.name;
+    $('#s-price').textContent = fmt.num(market.prices[t]);
+    $('#s-badge').innerHTML = badge(ch);
+    sparkline($('#s-spark'), market.history[t], market.cfg.ipoPrice, { w: 300, h: 80, maxPoints: 120 });
+    const held = (me.holdings && me.holdings[t]) || 0;
+    $('#s-have').innerHTML = held
+      ? `Tienes <b>${fmt.shares(held)}</b> acciones · <b>${fmt.money(held * market.prices[t])}</b>`
+      : `Efectivo disponible: <b>${fmt.money(me.cash)}</b>`;
+    if (held && sheet.side === 'buy') $('#s-have').innerHTML += ` · Efectivo <b>${fmt.money(me.cash)}</b>`;
+
+    for (const b of $('#s-quick').children) {
+      b.setAttribute('aria-pressed', sheet.side === 'sell' && sheet.pct != null && Number(b.dataset.v) === sheet.pct);
+    }
+
+    const q = quote();
+    const go = $('#s-go');
+    go.className = 'btn' + (sheet.side === 'sell' ? ' sell' : '');
+    const open = market.meta.phase === 'open';
+    if (!q) {
+      $('#s-preview').textContent = sheet.side === 'buy' ? 'Escribe cuánto quieres invertir' : 'Elige cuánto quieres vender';
+    } else if (sheet.side === 'buy') {
+      $('#s-preview').innerHTML = `Recibes ≈ <b>${fmt.shares(q.shares)}</b> acciones a ≈ <b>${fmt.num(q.avg)}</b>`;
+    } else {
+      $('#s-preview').innerHTML = `Vendes <b>${fmt.shares(q.shares)}</b> acciones y recibes ≈ <b>${fmt.money(q.usd)}</b>`;
+    }
+    go.disabled = !open || !q || busy;
+    go.textContent = !open ? 'Mercado cerrado' : !q ? (sheet.side === 'buy' ? 'Comprar' : 'Vender') : `${sheet.side === 'buy' ? 'Comprar' : 'Vender'} ${fmt.money(q.usd)}`;
+  }
+
+  let busy = false;
+  $('#s-go').onclick = async () => {
+    const q = quote();
+    if (!q || busy) return;
+    busy = true;
+    renderSheet();
+    const payload = { ticker: sheet.ticker, side: sheet.side };
+    if (sheet.side === 'buy') payload.usd = Math.round(q.usd * 100) / 100;
+    else if (sheet.pct != null || q.all) payload.pct = q.all ? 1 : sheet.pct;
+    else payload.usd = parseAmount($('#s-amount').value);
+    const res = await emitAck(socket, 'trade', payload);
+    busy = false;
+    if (!res.ok) {
+      toast(res.error, 'err');
+      renderSheet();
+      return;
+    }
+    me = res.me;
+    const r = res.result;
+    toast(
+      r.side === 'buy'
+        ? `✅ Compraste ${fmt.shares(r.shares)} $${r.ticker} por ${fmt.money(r.usd)}`
+        : `✅ Vendiste ${fmt.shares(r.shares)} $${r.ticker} por ${fmt.money(r.usd)}`,
+      'ok',
+    );
+    if (navigator.vibrate) navigator.vibrate(30);
+    closeSheet();
+    renderAll();
+  };
+
+  // ---------- Avisos ----------
+  function toast(html, kind = '', ms = 3200, raw = false) {
+    const el = document.createElement('div');
+    el.className = 'toast ' + kind;
+    if (raw) el.innerHTML = html;
+    else el.textContent = html;
+    $('#toasts').prepend(el);
+    setTimeout(() => {
+      el.classList.add('out');
+      setTimeout(() => el.remove(), 300);
+    }, ms);
+  }
+
+  function modal(html, btn = 'Entendido') {
+    const m = document.createElement('div');
+    m.className = 'modal';
+    m.innerHTML = `<div class="box">${html}<button class="btn">${esc(btn)}</button></div>`;
+    $('button', m).onclick = () => m.remove();
+    document.body.appendChild(m);
+  }
+
+  function showFinal() {
+    if (!finalMe) return;
+    modal(`
+      <div class="icon">🔔</div>
+      <h3>¡Cerró el mercado!</h3>
+      <div class="big">#${finalMe.pos}</div>
+      <p>de ${finalMe.total} jugadores · ${fmt.money(finalMe.value)} (${fmt.pct(finalMe.ret)})</p>
+      ${finalMe.awards.length ? `<div class="awards">${finalMe.awards.map((a) => `<span>${esc(a)}</span>`).join('')}</div>` : ''}`, '¡Gracias por jugar!');
+  }
+
+  // ---------- Socket ----------
+  socket.on('connect', () => {
+    $('#offline').hidden = true;
+    socket.emit('hello', { role: 'player', playerId: store.getItem('pizarra:id') }, (res) => {
+      if (!res || !res.ok) return;
+      market.load(res);
+      ready = true;
+      if (res.finalMe) finalMe = res.finalMe;
+      if (res.me) {
+        me = res.me;
+        if ($('#app').hidden) showApp();
+        else renderAll();
+      } else {
+        me = null;
+        $('#app').hidden = true;
+        $('#join').hidden = false;
+        renderJoin();
+      }
+    });
+  });
+  socket.on('disconnect', () => ($('#offline').hidden = false));
+  socket.on('tick', (t) => {
+    if (!ready) return;
+    market.applyTick(t);
+    if (me) {
+      renderPortfolio();
+      renderRows();
+      if (sheet.ticker) renderSheet();
+    }
+  });
+  socket.on('meta', (m) => {
+    if (!ready) return;
+    const was = market.meta.phase;
+    market.setMeta(m);
+    if (me) {
+      if (was !== 'open' && m.phase === 'open') toast('🔔 ¡Abrió el mercado! Compra y vende ahora', 'ok', 4000);
+      if (was === 'open' && m.phase === 'closed') toast('🔔 Mercado cerrado', '', 3000);
+      renderAll();
+    } else if (!$('#join').hidden) renderJoin();
+  });
+  socket.on('me', (m) => {
+    me = m;
+    renderAll();
+  });
+  socket.on('rank', (r) => {
+    rank = r;
+    if (me) renderStatus();
+  });
+  socket.on('news', (item) => {
+    if (!me) return;
+    const vals = Object.values(item.effects);
+    const down = vals.length > 0 && vals.every((v) => v < 0);
+    toast(`<div class="label">ÚLTIMA HORA</div><div class="h">${esc(item.headline)}</div><div class="chips">${effectChips(item.effects)}</div>`, 'news' + (down ? ' down' : ''), 7000, true);
+    if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+  });
+  socket.on('roulette', ({ spinMs }) => {
+    if (!me) return;
+    toast('🎲 ¡Evento sorpresa! Mira la pantalla 👀', '', spinMs);
+    if (navigator.vibrate) navigator.vibrate([30, 60, 30, 60, 30]);
+  });
+  socket.on('rumor', ({ text }) => {
+    if (!me) return;
+    if (navigator.vibrate) navigator.vibrate([40, 30, 40, 30, 40]);
+    modal(`<div class="icon">🤫</div><h3>Te llegó un rumor</h3><p class="quote">“${esc(text)}”</p><p>Solo unas pocas personas lo recibieron. ¿Será verdad?</p>`);
+  });
+  socket.on('final-me', (f) => {
+    finalMe = f;
+    renderStatus();
+    showFinal();
+  });
+  socket.on('kicked', () => {
+    store.removeItem('pizarra:id');
+    location.reload();
+  });
+  socket.on('reset', () => {
+    store.removeItem('pizarra:id');
+    location.reload();
+  });
+
+  setInterval(() => {
+    if (ready && me && market.meta.phase === 'open') {
+      renderStatus();
+      if (market.remaining() != null && market.remaining() <= 0) renderSheet();
+    }
+  }, 250);
+</script>
+</body>
+</html>
