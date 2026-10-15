@@ -43,7 +43,7 @@
   .top .group { display: flex; gap: 6px; flex-wrap: wrap; }
 
   .cols { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; padding: 20px; align-items: start; }
-  @media (max-width: 900px) { .cols { grid-template-columns: 1fr; padding: 16px; } .top { padding: 10px 16px; } }
+  @media (max-width: 900px) { .cols { grid-template-columns: minmax(0, 1fr); padding: 16px; } .top { padding: 10px 16px; } }
 
   .panel { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
   .panel h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin: 0 0 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
@@ -63,10 +63,17 @@
   .ev .done { font-family: var(--font-mono); font-size: 11px; color: var(--up); margin-top: 4px; }
 
   .custom { display: grid; gap: 10px; }
-  .effects { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .notes { border-color: var(--up); }
+  .ev.draft { grid-template-columns: 1fr; }
+  .ev.draft .acts { flex-wrap: wrap; }
+  .ev .rumor-text { font-size: 13px; color: var(--muted); font-style: italic; margin-top: 6px; }
+  .ev.used { opacity: 0.55; }
+  details.used-list summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 10px 0 4px; }
+  .empty-note { color: var(--muted); font-size: 13px; padding: 12px 0 2px; }
+  .effects { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
   .effects label { font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--muted); }
-  .effects input { width: 100%; margin-top: 3px; padding: 8px; font-family: var(--font-mono); font-size: 13px; }
-  @media (max-width: 500px) { .effects { grid-template-columns: repeat(3, 1fr); } }
+  .effects input { min-width: 0; width: 100%; margin-top: 3px; padding: 8px; font-family: var(--font-mono); font-size: 13px; }
+  @media (max-width: 500px) { .effects { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
   .seg { display: flex; gap: 6px; flex-wrap: wrap; }
   .seg .btn[aria-pressed='true'] { border-color: var(--up); color: var(--up); background: var(--up-bg); }
@@ -122,22 +129,26 @@
 
   <div class="cols">
     <div>
+      <div class="panel notes">
+        <h2>📝 Tus noticias <span class="muted" style="text-transform:none;letter-spacing:0">Anótalas mientras presentan, lánzalas cuando quieras</span></h2>
+        <form class="custom" id="draft-form" autocomplete="off">
+          <input class="input" id="d-headline" maxlength="140" placeholder="📈 Ej: CX subió el CSAT 10 puntos">
+          <div class="effects" id="d-effects"></div>
+          <input class="input" id="d-rumor" maxlength="200" placeholder="🤫 Texto del rumor (opcional; si lo dejas vacío, se arma con el titular)">
+          <div class="row">
+            <button class="btn primary" value="save">💾 Guardar para después</button>
+            <button class="btn" value="news">📣 Lanzar ya</button>
+            <button class="btn warn" value="roulette">🎲 Ruleta ya</button>
+          </div>
+          <span class="muted" style="font-size:12px">Porcentajes: 15 = +15%, -10 = -10% (máx. +500%, mín. -90%). Sin porcentajes, la noticia no mueve precios.</span>
+        </form>
+        <div id="drafts"></div>
+      </div>
+
       <div class="panel">
         <h2>Agenda y noticias <span class="muted" style="text-transform:none;letter-spacing:0">Toca un bloque para marcarlo como actual</span></h2>
         <p class="note">Flujo sugerido por bloque: 🤫 rumor mientras presentan → 📣 noticia al terminar → abrir mercado 60–90s.</p>
         <div id="blocks"></div>
-      </div>
-
-      <div class="panel">
-        <h2>Noticia personalizada</h2>
-        <form class="custom" id="custom">
-          <input class="input" id="c-headline" maxlength="140" placeholder="🚨 Titular de la noticia">
-          <div class="effects" id="c-effects"></div>
-          <div class="row">
-            <button class="btn primary">📣 Lanzar noticia</button>
-            <span class="muted" style="font-size:13px">Porcentajes: 200 = +200%, -50 = -50% (máx. +500%, mín. -90%)</span>
-          </div>
-        </form>
       </div>
 
       <div class="panel">
@@ -254,6 +265,7 @@
       $('#login').hidden = true;
       $('#app').hidden = false;
       buildCustom();
+      renderDrafts(res.drafts || []);
       renderSurprises(res.surprises || []);
       renderAll();
     });
@@ -335,20 +347,79 @@
 
   function buildCustom() {
     const opts = [['ALL', 'Todo'], ...market.cfg.stocks.map((s) => [s.ticker, '$' + s.ticker])];
-    $('#c-effects').innerHTML = opts.map(([t, l]) => `<label>${esc(l)}<input class="input" data-t="${esc(t)}" inputmode="decimal" placeholder="0"></label>`).join('');
+    $('#d-effects').innerHTML = opts.map(([t, l]) => `<label>${esc(l)}<input class="input" data-t="${esc(t)}" inputmode="decimal" placeholder="0"></label>`).join('');
   }
-  $('#custom').addEventListener('submit', async (e) => {
+
+  // ---------- Tus noticias ----------
+  const draftDone = { news: '📣 Lanzada', roulette: '🎲 Lanzada por ruleta', fake: '🎭 Usada como rumor falso' };
+  function draftResult(mode, res) {
+    if (!res.ok) return;
+    if (mode === 'rumor' || mode === 'fake') {
+      const label = mode === 'fake' ? '🎭 Rumor falso' : '🤫 Rumor';
+      toast(res.to.length ? `${label} enviado a: ${res.to.join(', ')}` : 'No hay jugadores todavía', !res.to.length);
+    } else if (mode === 'news') toast('📣 Noticia lanzada');
+    else if (mode === 'roulette') toast(`🎲 Girando… cae en: ${res.headline}`);
+    else toast('💾 Guardada');
+  }
+
+  $('#draft-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const mode = (e.submitter && e.submitter.value) || 'save';
     const effects = {};
-    for (const i of document.querySelectorAll('#c-effects input')) {
+    for (const i of document.querySelectorAll('#d-effects input')) {
       const v = parseFloat(i.value.replace(',', '.'));
       if (Number.isFinite(v) && v !== 0) effects[i.dataset.t] = v / 100;
     }
-    const res = await act({ action: 'news', headline: $('#c-headline').value, effects });
-    if (res.ok) {
-      $('#custom').reset();
-      toast('📣 Noticia lanzada');
+    const res = await act({
+      action: 'draft:add',
+      headline: $('#d-headline').value,
+      effects,
+      rumor: $('#d-rumor').value,
+      fire: mode === 'save' ? null : mode,
+    });
+    // Si se guardó pero no se pudo lanzar (ej. la ruleta ya giraba), queda en la lista igual.
+    if (res.saved) $('#draft-form').reset();
+    draftResult(mode, res);
+  });
+
+  function renderDrafts(list) {
+    const pending = list.filter((d) => !d.firedAt);
+    const used = list.filter((d) => d.firedAt);
+    const row = (d, isUsed) => `
+      <div class="ev draft ${isUsed ? 'used' : ''}">
+        <div>
+          <div class="h">${esc(d.headline)}</div>
+          <div class="chips">${effectChips(d.effects) || '<span class="muted">Sin efecto en precios</span>'}</div>
+          <div class="rumor-text">🤫 “${esc(d.rumor || `Me contaron algo… «${d.headline}» 🤫`)}”</div>
+          ${d.rumorAt && d.firedAs !== 'fake' ? `<div class="done">🤫 rumor enviado ${fmt.time(d.rumorAt)}</div>` : ''}
+          ${isUsed ? `<div class="done">${draftDone[d.firedAs] || '✓'} ${fmt.time(d.firedAt)}</div>` : ''}
+        </div>
+        <div class="acts">
+          ${isUsed ? '' : `
+          <button class="btn small" data-draft="${esc(d.id)}" data-mode="rumor" title="Llega a unas pocas personas al azar; la noticia queda guardada">🤫 Rumor</button>
+          <button class="btn small" data-draft="${esc(d.id)}" data-mode="fake" title="Manda el rumor y la archiva: nunca se cumple">🎭 Rumor falso</button>
+          <button class="btn small primary" data-draft="${esc(d.id)}" data-mode="news">📣 Noticia</button>
+          <button class="btn small warn" data-draft="${esc(d.id)}" data-mode="roulette" title="La ruleta gira y cae en esta">🎲 Ruleta</button>`}
+          <button class="x" data-del="${esc(d.id)}" title="Borrar">✕</button>
+        </div>
+      </div>`;
+    $('#drafts').innerHTML =
+      (pending.length ? pending.map((d) => row(d, false)).join('') : '<div class="empty-note">Aún no tienes noticias guardadas.</div>') +
+      (used.length ? `<details class="used-list"><summary>Ya usadas (${used.length})</summary>${used.map((d) => row(d, true)).join('')}</details>` : '');
+  }
+
+  $('#drafts').addEventListener('click', async (e) => {
+    const del = e.target.closest('[data-del]');
+    if (del) {
+      if (confirm('¿Borrar esta noticia?')) act({ action: 'draft:remove', id: del.dataset.del });
+      return;
     }
+    const b = e.target.closest('[data-draft]');
+    if (!b) return;
+    b.disabled = true;
+    const res = await act({ action: 'draft:fire', id: b.dataset.draft, mode: b.dataset.mode });
+    b.disabled = false;
+    draftResult(b.dataset.mode, res);
   });
 
   function surpriseChips(effects) {
@@ -452,6 +523,7 @@
     renderAll();
   });
   socket.on('players', renderPlayers);
+  socket.on('drafts', (list) => ready && renderDrafts(list));
   socket.on('reset', () => location.reload());
 
   setInterval(() => {

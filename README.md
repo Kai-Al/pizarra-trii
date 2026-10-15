@@ -72,6 +72,17 @@ Toca el nombre de cada bloque en el admin para marcarlo como actual (el título 
 
 **Premiación** (cada clic en *Revelar siguiente*): precios finales → puestos 10 al 4 → 3º → 2º → 1º con confeti 🎉 → premios especiales. Cuando sale el 1º, cada jugador ve en su celular en qué puesto quedó.
 
+## 📝 Tus noticias (anotadas en vivo)
+
+Arriba del admin hay un formulario para anotar noticias mientras tus compañeros presentan: titular, cuánto mueve cada acción y, si quieres, el texto del rumor. **Guardar para después** las deja en una lista, que sobrevive si recargas el admin o cambias de dispositivo. Cada noticia guardada tiene:
+
+- **🤫 Rumor**: le llega a unas pocas personas al azar y la noticia sigue guardada. Si después la lanzas, el rumor era verdadero.
+- **🎭 Rumor falso**: manda el rumor y archiva la noticia, así nunca se cumple.
+- **📣 Noticia**: la lanza y mueve los precios.
+- **🎲 Ruleta**: la ruleta gira y cae justo en tu texto (la ruleta manipulada).
+
+También están **📣 Lanzar ya** y **🎲 Ruleta ya**, para usar el formulario sin guardar antes. Las notas viven en memoria: un deploy o un reinicio de Render las borra. *Reiniciar juego* conserva las que no has usado.
+
 ## 🎲 Eventos sorpresa (ruleta)
 
 Desde el admin, **🎲 Ruleta** muestra en el proyector una ruleta que gira unos 4 segundos entre titulares y frena en uno. Cuando cae, los precios se mueven. Cada evento en el admin también tiene:

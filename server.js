@@ -71,6 +71,7 @@ function freshState() {
     fired: {},
     rumors: {},
     final: null,
+    drafts: [], // noticias que el host anota durante las exposiciones para lanzarlas después
   };
 }
 
@@ -83,6 +84,7 @@ function loadState() {
     const sameStocks = TICKERS.every((t) => saved.stocks && saved.stocks[t]);
     if (!sameStocks) return null;
     console.log(`Estado recuperado de ${DATA_FILE} (${Object.keys(saved.players).length} jugadores)`);
+    saved.drafts = saved.drafts || [];
     return saved;
   } catch {
     return null;
@@ -286,6 +288,70 @@ function resolveSurprise(tpl) {
 
 function randomSurprise() {
   return SURPRISES[Math.floor(Math.random() * SURPRISES.length)];
+}
+
+function cleanEffects(raw) {
+  const effects = {};
+  for (const [t, v] of Object.entries(raw || {})) {
+    const pct = Number(v);
+    if ((t === 'ALL' || TICKERS.includes(t)) && Number.isFinite(pct) && pct !== 0) effects[t] = clamp(pct, MAX_DOWN, MAX_UP);
+  }
+  return effects;
+}
+
+// La pantalla gira entre titulares al azar y frena en `ev`; los precios se mueven cuando cae.
+function spinRoulette(ev) {
+  if (state.phase === 'finished') return { ok: false, error: 'El juego ya cerró' };
+  if (rouletteBusy) return { ok: false, error: 'La ruleta ya está girando' };
+  const decoys = SURPRISES.length
+    ? () => resolveSurprise(randomSurprise()).headline
+    : () => [...EVENTS.values()][Math.floor(Math.random() * EVENTS.size)].headline;
+  const sequence = Array.from({ length: 16 }, decoys);
+  sequence.push(ev.headline);
+  rouletteBusy = true;
+  const game = state;
+  io.emit('roulette', { sequence, spinMs: ROULETTE_SPIN_MS, holdMs: ROULETTE_HOLD_MS });
+  setTimeout(() => {
+    rouletteBusy = false;
+    if (state === game && state.phase !== 'finished') applyNews(ev);
+  }, ROULETTE_SPIN_MS + ROULETTE_HOLD_MS);
+  return { ok: true, headline: ev.headline };
+}
+
+// ---------- Notas del host ----------
+
+function emitDrafts() {
+  dirty = true;
+  io.to('admins').emit('drafts', state.drafts);
+}
+
+function draftRumor(d) {
+  return d.rumor || `Me contaron algo… «${d.headline}» 🤫`;
+}
+
+// mode: news (lanza ya), roulette (la ruleta cae en ella), rumor (se filtra y queda guardada), fake (solo rumor, se archiva)
+function fireDraft(d, mode) {
+  const now = Date.now();
+  if (mode === 'news') {
+    if (state.phase === 'finished') return { ok: false, error: 'El juego ya cerró' };
+    applyNews({ headline: d.headline, effects: d.effects });
+  } else if (mode === 'roulette') {
+    const res = spinRoulette({ headline: d.headline, effects: d.effects });
+    if (!res.ok) return res;
+  } else if (mode === 'rumor' || mode === 'fake') {
+    const to = sendRumor(draftRumor(d));
+    d.rumorAt = now;
+    if (mode === 'fake') {
+      d.firedAt = now;
+      d.firedAs = 'fake';
+    }
+    return { ok: true, to };
+  } else {
+    return { ok: false, error: 'Acción desconocida' };
+  }
+  d.firedAt = now;
+  d.firedAs = mode;
+  return { ok: true, headline: d.headline };
 }
 
 // ---------- Trading ----------
@@ -539,6 +605,7 @@ function initPayload(socket) {
     news: state.news.slice(-10),
     fired: role === 'admin' ? state.fired : undefined,
     surprises: role === 'admin' ? SURPRISES : undefined,
+    drafts: role === 'admin' ? state.drafts : undefined,
     rumors: role === 'admin' ? state.rumors : undefined,
     final: role === 'screen' || role === 'admin' ? finalForScreens() : undefined,
   };
@@ -709,12 +776,7 @@ function adminAction(msg) {
       } else {
         const headline = String(msg.headline || '').trim().slice(0, 140);
         if (!headline) return { ok: false, error: 'Escribe el titular' };
-        const effects = {};
-        for (const [t, v] of Object.entries(msg.effects || {})) {
-          const pct = Number(v);
-          if ((t === 'ALL' || TICKERS.includes(t)) && Number.isFinite(pct) && pct !== 0) effects[t] = clamp(pct, MAX_DOWN, MAX_UP);
-        }
-        ev = { headline, effects };
+        ev = { headline, effects: cleanEffects(msg.effects) };
       }
       applyNews(ev);
       return { ok: true, fired: state.fired };
@@ -731,17 +793,37 @@ function adminAction(msg) {
         applyNews(ev);
         return { ok: true, headline: ev.headline };
       }
-      const sequence = Array.from({ length: 16 }, () => resolveSurprise(randomSurprise()).headline);
-      sequence.push(ev.headline);
-      rouletteBusy = true;
-      const game = state;
-      io.emit('roulette', { sequence, spinMs: ROULETTE_SPIN_MS, holdMs: ROULETTE_HOLD_MS });
-      setTimeout(() => {
-        rouletteBusy = false;
-        if (state === game && state.phase !== 'finished') applyNews(ev);
-      }, ROULETTE_SPIN_MS + ROULETTE_HOLD_MS);
-      return { ok: true, headline: ev.headline };
+      return spinRoulette(ev);
     }
+    case 'draft:add': {
+      const headline = String(msg.headline || '').trim().slice(0, 140);
+      if (!headline) return { ok: false, error: 'Escribe el titular' };
+      const d = {
+        id: crypto.randomUUID(),
+        headline,
+        effects: cleanEffects(msg.effects),
+        rumor: String(msg.rumor || '').trim().slice(0, 200),
+        createdAt: Date.now(),
+        rumorAt: null,
+        firedAt: null,
+        firedAs: null,
+      };
+      state.drafts.push(d);
+      const res = msg.fire ? fireDraft(d, msg.fire) : { ok: true };
+      emitDrafts();
+      return { ...res, id: d.id, saved: true };
+    }
+    case 'draft:fire': {
+      const d = state.drafts.find((x) => x.id === msg.id);
+      if (!d) return { ok: false, error: 'Noticia no encontrada' };
+      const res = fireDraft(d, msg.mode);
+      emitDrafts();
+      return res;
+    }
+    case 'draft:remove':
+      state.drafts = state.drafts.filter((x) => x.id !== msg.id);
+      emitDrafts();
+      return;
     case 'rumor': {
       const ev = EVENTS.get(msg.eventId);
       if (!ev || !ev.rumor) return { ok: false, error: 'Esa noticia no tiene rumor' };
@@ -809,7 +891,11 @@ function adminAction(msg) {
     }
     case 'reset':
       if (msg.confirm !== 'REINICIAR') return { ok: false, error: 'Escribe REINICIAR para confirmar' };
-      state = freshState();
+      {
+        const pending = state.drafts.filter((d) => !d.firedAt).map((d) => ({ ...d, rumorAt: null }));
+        state = freshState();
+        state.drafts = pending;
+      }
       dirty = true;
       io.emit('reset');
       return;
