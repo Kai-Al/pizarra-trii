@@ -20,17 +20,18 @@ module.exports = {
   stocks: [
     { ticker: 'FRNT', name: 'Frontend' },
     { ticker: 'BKND', name: 'Backend' },
-    { ticker: 'UXD', name: 'Diseño' },
-    { ticker: 'CXX', name: 'Customer experience' },
+    { ticker: 'UXD', name: 'Product Design' },
+    { ticker: 'BRND', name: 'Brand Design' },
     { ticker: 'PROD', name: 'Producto' },
-    { ticker: 'LGL', name: 'Legal' },
-    { ticker: 'FIN', name: 'Finanzas' },
-    { ticker: 'GRWT', name: 'Growth' },
-    { ticker: 'MKTG', name: 'Marketing' },
+    { ticker: 'OPS', name: 'Operaciones' },
+    { ticker: 'CXX', name: 'Customer Experience' },
+    { ticker: 'CORP', name: 'Legal & finanzas (Corporate)' },
+    { ticker: 'GRWT', name: 'Growth & marketing' },
+    { ticker: 'PTNR', name: 'Partnerships' },
   ],
 
-  // Áreas que no cotizan pero que la gente puede elegir al entrar
-  otherAreas: ['Liderazgo', 'People', 'Operaciones', 'Otra área'],
+  // Áreas extra que la gente puede elegir al entrar, aunque no coticen (vacío = solo las acciones)
+  otherAreas: [],
 
   // Eventos sorpresa para la ruleta 🎲. Se pueden lanzar en cualquier momento desde el admin.
   // En los titulares, {t} y {area} se reemplazan por una acción al azar ($BKND / Backend),
@@ -74,9 +75,9 @@ module.exports = {
         },
         {
           id: 'cumple-area',
-          headline: '🥳 Doble cumpleaños en Growth: invitan las empanadas',
+          headline: '🥳 Doble cumpleaños en Growth & marketing: invitan las empanadas',
           effects: { GRWT: 0.07 },
-          rumor: 'Alguien vio bolsas de empanadas entrando por el lado de Growth 👀',
+          rumor: 'Alguien vio bolsas de empanadas entrando por el lado de Growth & marketing 👀',
         },
       ],
     },
@@ -87,8 +88,8 @@ module.exports = {
         {
           id: 'veteranos',
           headline: '🏅 Aniversarios: la experiencia cotiza al alza',
-          effects: { BKND: 0.05, FIN: 0.04, LGL: 0.04 },
-          rumor: 'Los veteranos de Backend, Finanzas y Legal están de aniversario…',
+          effects: { BKND: 0.05, CORP: 0.05, OPS: 0.04 },
+          rumor: 'Los veteranos de Backend, Corporate y Operaciones están de aniversario…',
         },
       ],
     },
@@ -98,9 +99,9 @@ module.exports = {
       events: [
         {
           id: 'talento',
-          headline: '👋 Llega talento nuevo: Frontend y Diseño se refuerzan',
+          headline: '👋 Llega talento nuevo: Frontend y Product Design se refuerzan',
           effects: { FRNT: 0.06, UXD: 0.06 },
-          rumor: 'Hay caras nuevas sentadas cerca de Frontend y Diseño 🤫',
+          rumor: 'Hay caras nuevas sentadas cerca de Frontend y Product Design 🤫',
         },
         {
           id: 'deploy-dia-1',
@@ -148,7 +149,7 @@ module.exports = {
           id: 'rediseno',
           headline: '🎨 El rediseño enamoró a los usuarios',
           effects: { UXD: 0.09 },
-          rumor: 'Dicen que los usuarios están felices con lo nuevo de Diseño 🎨',
+          rumor: 'Dicen que los usuarios están felices con lo nuevo de Product Design 🎨',
         },
         {
           id: 'boton',
@@ -163,16 +164,16 @@ module.exports = {
       title: 'Próximos hosts',
       events: [
         {
-          id: 'hosts-mktg',
-          headline: '🎤 Marketing será host: se viene show',
-          effects: { MKTG: 0.08 },
-          rumor: 'Se rumora que los próximos hosts salen de Marketing 🎤',
+          id: 'hosts-ptnr',
+          headline: '🎤 Partnerships consiguió invitados de lujo para el próximo host',
+          effects: { PTNR: 0.08 },
+          rumor: 'Partnerships anda moviendo contactos para el próximo host 🎤',
         },
         {
-          id: 'legal-ok',
-          headline: '⚖️ Legal aprobó un contrato en tiempo récord',
-          effects: { LGL: 0.1 },
-          rumor: 'Legal anda aprobando todo a la velocidad de la luz ⚖️',
+          id: 'corp-ok',
+          headline: '⚖️ Corporate aprobó un contrato en tiempo récord',
+          effects: { CORP: 0.1 },
+          rumor: 'Corporate anda aprobando todo a la velocidad de la luz ⚖️',
         },
       ],
     },
@@ -182,21 +183,33 @@ module.exports = {
       events: [
         {
           id: 'presupuesto',
-          headline: '💰 Finanzas cuadró el presupuesto al centavo',
-          effects: { FIN: 0.08 },
-          rumor: 'Finanzas está sonriendo mucho hoy… 💰',
+          headline: '💰 Corporate cuadró el presupuesto al centavo',
+          effects: { CORP: 0.08 },
+          rumor: 'En Corporate están sonriendo mucho hoy… 💰',
         },
         {
-          id: 'viral',
-          headline: '📣 La campaña de Marketing se volvió viral',
-          effects: { MKTG: 0.1 },
-          rumor: 'Marketing tiene algo que se está moviendo mucho en redes 📣',
+          id: 'marca',
+          headline: '🎨 Brand Design estrenó piezas y todo el mundo las está compartiendo',
+          effects: { BRND: 0.1 },
+          rumor: 'Brand Design tiene algo nuevo que se va a mover mucho en redes 🎨',
         },
         {
           id: 'meta-growth',
-          headline: '📊 Growth rompió la meta de usuarios',
+          headline: '📊 Growth & marketing rompió la meta de usuarios',
           effects: { GRWT: 0.09 },
-          rumor: 'Growth está a punto de anunciar algo grande 📊',
+          rumor: 'Growth & marketing está a punto de anunciar algo grande 📊',
+        },
+        {
+          id: 'alianza',
+          headline: '🤝 Partnerships cerró una alianza nueva',
+          effects: { PTNR: 0.1 },
+          rumor: 'Dicen que Partnerships está a una firma de cerrar algo grande 🤝',
+        },
+        {
+          id: 'ops',
+          headline: '⚙️ Operaciones cerró el mes sin un solo pendiente',
+          effects: { OPS: 0.08 },
+          rumor: 'Operaciones viene con números impecables este mes ⚙️',
         },
         {
           id: 'rally',

@@ -62,6 +62,19 @@
   .card.hit-down { border-color: var(--down); box-shadow: 0 0 0 2px var(--down), 0 0 3rem rgb(236 102 81 / 0.25); }
   .breaking-on .card:not(.hit-up):not(.hit-down) { filter: brightness(0.45) saturate(0.6); }
 
+  /* Con más de 9 acciones: 5 columnas y tarjetas verticales (precio arriba, gráfico abajo). */
+  .grid.stack .card { grid-template-rows: auto minmax(0, 1fr); padding: 1.3rem 1.3rem 1.2rem; }
+  .grid.stack .card .ticker { font-size: 1.6rem; }
+  .grid.stack .card .top { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.3rem 0.8rem; }
+  .grid.stack .card .top > div:first-child { display: contents; }
+  .grid.stack .card .top .b { grid-row: 1; grid-column: 2; }
+  .grid.stack .card .name { grid-column: 1 / -1; font-size: 1.15rem; line-height: 1.25; min-height: 2.5em; margin-top: 0; }
+  .grid.stack .card .badge { font-size: 1.1rem; }
+  .grid.stack .card .bottom { flex-direction: column; align-items: stretch; justify-content: flex-end; gap: 1rem; }
+  .grid.stack .card .price { font-size: 3.5rem; white-space: nowrap; }
+  .grid.stack .card .spark { flex: 1; max-width: none; width: 100%; height: auto; min-height: 3rem; max-height: 9rem; }
+  .grid.stack .hot-text { display: none; }
+
   .tape {
     margin: 0 -3rem;
     height: 3.6rem;
@@ -354,12 +367,17 @@
   function buildBoard() {
     const grid = $('#grid');
     grid.innerHTML = '';
+    const n = market.cfg.stocks.length;
+    const cols = n <= 9 ? 3 : 5;
+    grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+    grid.style.gridTemplateRows = `repeat(${Math.ceil(n / cols)}, minmax(0, 1fr))`;
+    grid.classList.toggle('stack', cols === 5);
     for (const s of market.cfg.stocks) {
       const el = document.createElement('article');
       el.className = 'card';
       el.innerHTML = `
         <div class="top">
-          <div><div class="ticker">$${esc(s.ticker)}<span class="hot" hidden>🔥 la más comprada</span></div><div class="name">${esc(s.name)}</div></div>
+          <div><div class="ticker">$${esc(s.ticker)}<span class="hot" hidden>🔥<span class="hot-text"> la más comprada</span></span></div><div class="name">${esc(s.name)}</div></div>
           <span class="b"></span>
         </div>
         <div class="bottom"><div class="price"></div><svg class="spark"></svg></div>`;

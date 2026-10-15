@@ -34,6 +34,15 @@ for (const block of config.blocks) for (const ev of block.events) EVENTS.set(ev.
 const SURPRISES = config.surprises || [];
 let rouletteBusy = false;
 
+// Avisa si alguna noticia apunta a una acción que no existe (pasa al cambiar las áreas en config.js).
+for (const ev of [...EVENTS.values(), ...SURPRISES]) {
+  for (const key of Object.keys(ev.effects || {})) {
+    if (!['ALL', 'RANDOM', 'RANDOM2'].includes(key) && !TICKERS.includes(key)) {
+      console.warn(`⚠️  La noticia "${ev.id}" mueve $${key}, pero esa acción no existe en config.js`);
+    }
+  }
+}
+
 // ---------- Estado ----------
 
 function freshState() {
@@ -468,7 +477,14 @@ const page = (file) => (req, res) => {
 app.get('/', page('jugar.html'));
 app.get('/pantalla', page('pantalla.html'));
 app.get('/admin', page('admin.html'));
-app.get('/healthz', (req, res) => res.json({ ok: true, players: Object.keys(state.players).length }));
+app.get('/healthz', (req, res) =>
+  res.json({
+    ok: true,
+    players: Object.keys(state.players).length,
+    phase: state.phase,
+    commit: (process.env.RENDER_GIT_COMMIT || 'local').slice(0, 7),
+  }),
+);
 
 function lanIp() {
   for (const list of Object.values(os.networkInterfaces())) {
@@ -614,6 +630,21 @@ io.on('connection', (socket) => {
       ack({ ok: true, me: publicPlayer(state.players[id]) });
       broadcastMeta();
       emitBoards();
+    }),
+  );
+
+  // Un jugador puede salirse del juego (lo usan los bots de prueba para limpiar al terminar).
+  socket.on(
+    'leave',
+    safe((msg, ack) => {
+      const id = socket.data.playerId;
+      if (!id || !state.players[id]) return ack({ ok: false, error: 'No estás en el juego' });
+      if (state.phase === 'finished') return ack({ ok: false, error: 'El juego ya terminó' });
+      delete state.players[id];
+      socket.data.playerId = null;
+      socket.leave('p:' + id);
+      ack({ ok: true });
+      broadcastMeta();
     }),
   );
 

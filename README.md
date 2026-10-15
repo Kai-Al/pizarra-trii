@@ -23,7 +23,15 @@ Abre `http://localhost:3000/pantalla`. El QR apunta a la IP de tu red local, as�
 npm run bots -- 35
 ```
 
-Conecta 35 bots que compran y venden al azar cuando el mercado está abierto. Para ensayar contra el servidor publicado: `npm run bots -- 35 https://tu-app.onrender.com`. Al terminar, usa **Reiniciar juego** en el admin; los bots se desconectan solos.
+Conecta 35 bots que compran y venden al azar cuando el mercado está abierto.
+
+### Prueba de carga
+
+```bash
+node scripts/loadtest.js 50 https://pizarra-trii.onrender.com
+```
+
+Conecta 50 jugadores y mide latencias, retrasos de precios y desconexiones. Mientras corre, abre el mercado desde `/admin` (60s está bien). La prueba termina sola unos segundos después de que el mercado vuelve a cerrar, imprime el resultado y saca a los bots del juego. Para ensayar contra el servidor publicado: `npm run bots -- 35 https://tu-app.onrender.com`. Al terminar, usa **Reiniciar juego** en el admin; los bots se desconectan solos.
 
 ## Publicarlo gratis en Render
 
@@ -90,6 +98,6 @@ Límites: una acción puede subir hasta **+500%** y caer hasta **−90%**. Un �
 
 ## Editar acciones, noticias y rumores
 
-Todo está en [`config.js`](config.js): las 9 acciones, la agenda, los titulares, sus efectos (`0.12` = +12%) y los rumores. Cambia los titulares de ejemplo por lo que realmente se va a presentar, y escríbelos con los líderes de cada área. También puedes lanzar noticias personalizadas desde el admin.
+Todo está en [`config.js`](config.js): las 10 acciones (una por área), la agenda, los titulares, sus efectos (`0.12` = +12%) y los rumores. Cambia los titulares de ejemplo por lo que realmente se va a presentar, y escríbelos con los líderes de cada área. También puedes lanzar noticias personalizadas desde el admin.
 
 **Recomendación:** mantén las noticias negativas chiquitas y graciosas, y procura que todas las áreas terminen por encima de 100. La competencia es entre jugadores, no entre equipos.
